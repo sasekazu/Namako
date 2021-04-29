@@ -219,7 +219,7 @@ namespace Namako
 
             // Measure time
             calcTime.Enqueue((float)GetCalcTime());
-            if (calcTime.Count == 1000)
+            if (calcTime.Count == 100)
             {
                 float ct = 0.0f;
                 foreach (float t in calcTime)
@@ -278,7 +278,7 @@ namespace Namako
             SetGravity(gravityFEM.x, gravityFEM.y, gravityFEM.z);
 
             // Solve FEM
-            UpdateFEM(0.016f, vmesh_pos_cpp);
+            UpdateFEM(0.03f, vmesh_pos_cpp);
 
             // Copy pos_cpp to mesh.vertices
             Marshal.Copy(vmesh_pos_cpp, managed_array, 0, 3 * n_vert_all);

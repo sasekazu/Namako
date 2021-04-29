@@ -4,6 +4,10 @@ using UnityEngine;
 
 public class MoveHIP : MonoBehaviour
 {
+
+    public float amp = 0.1f;
+    public float freq = 0.5f;
+
     Namako.NamakoSolver solver;
     float time = 0.0f;
     Vector3 initPos;
@@ -18,7 +22,7 @@ public class MoveHIP : MonoBehaviour
     {
         time += Time.deltaTime;
         Vector3 p = initPos;
-        p.x = initPos.x + 0.03f * Mathf.Sin(2.0f * Mathf.PI * time);
+        p.x = initPos.x + amp * ( - Mathf.Cos(2.0f * Mathf.PI * freq * time));
         solver.devicePosOffset = p;
     }
 }
