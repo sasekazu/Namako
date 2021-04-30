@@ -16,9 +16,10 @@ namespace Namako
     {
 
         public GameObject deviceObj;
+        public GameObject inputObj;
         public GameObject visualObj;
         public Boolean viewNodes = false;
-        public float HIPRad = 0.03f;
+        public float HIPRad = 0.05f;
         public float youngsModulusKPa = 0.6f;
         public float poisson = 0.4f;
         public float density = 1000.0f;
@@ -33,10 +34,7 @@ namespace Namako
         public float waitTime = 0.5f;
         public Vector3 gravityFEM = Vector3.zero;
         public Vector3 gravityRb = Vector3.zero;
-
-        [System.NonSerialized]
-        public Vector3 devicePosOffset = Vector3.zero;
-
+        
         private float time = 0.0f;
         private IntPtr vmesh_pos_cpp;
         private IntPtr vmesh_indices_cpp;
@@ -101,9 +99,6 @@ namespace Namako
 
         void Start()
         {
-            devicePosOffset = deviceObj.transform.position;
-            Debug.Log(devicePosOffset);
-
             tetContainer = GetComponent<TetContainer>();
 
             mfs = visualObj.GetComponentsInChildren<MeshFilter>();
@@ -214,7 +209,6 @@ namespace Namako
         void Update()
         {
 
-
             time += Time.deltaTime;
 
             // Measure time
@@ -242,7 +236,8 @@ namespace Namako
             }
 
             // Set handle offset
-            SetHandleOffset(devicePosOffset.x, devicePosOffset.y, devicePosOffset.z);
+            Vector3 handleOffset = inputObj.transform.position;
+            SetHandleOffset(handleOffset.x, handleOffset.y, handleOffset.z);
 
             // Rigid body
             {

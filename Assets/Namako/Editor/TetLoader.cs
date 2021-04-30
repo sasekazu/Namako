@@ -20,7 +20,11 @@ namespace Namako
         private GameObject nodeRootObj;
         private GameObject[] nodeObj;
         private GameObject tetObj;
+        private GameObject proxyObj;
+        private GameObject inputObj;
         private string meshObjName = "TetMesh";
+        private string proxyObjName = "Proxy";
+        private string inputObjName = "Input";
         public const float r = 0.005f;
         private TextAsset jsonAsset;
         private float tetraScale = 0.9f;
@@ -36,6 +40,7 @@ namespace Namako
             textAsset = EditorGUILayout.ObjectField("Mesh Source (TextAsset)", textAsset, typeof(Object), true) as TextAsset;
             if (GUILayout.Button("Load Mesh"))
             {
+                // Generate Mesh object
                 meshObj = new GameObject();
                 meshObj.name = meshObjName;
                 LoadMesh();
@@ -43,11 +48,24 @@ namespace Namako
                 TetContainer tetContainer = meshObj.AddComponent<TetContainer>();
                 tetContainer.meshJsonAsset = jsonAsset;
                 tetContainer.tetraScale = tetraScale;
-                meshObj.AddComponent<NamakoSolver>();
+                NamakoSolver solver = meshObj.AddComponent<NamakoSolver>();
+
+                // Generate Input and Proxy objects
+                inputObj = GameObject.CreatePrimitive(PrimitiveType.Sphere);
+                inputObj.name = inputObjName;
+                inputObj.transform.localScale = Vector3.one * solver.HIPRad * 2.0f;
+                proxyObj = GameObject.CreatePrimitive(PrimitiveType.Sphere);
+                proxyObj.name = proxyObjName;
+                proxyObj.transform.localScale = Vector3.one * solver.HIPRad * 2.0f;
+                solver.deviceObj = proxyObj;
+                solver.inputObj = inputObj;
+                
             }
             if (GUILayout.Button("Clean"))
             {
                 DestroyImmediate(GameObject.Find(meshObjName));
+                DestroyImmediate(GameObject.Find(inputObjName));
+                DestroyImmediate(GameObject.Find(proxyObjName));
                 AssetDatabase.DeleteAsset(MeshForJSON.savePath);
                 AssetDatabase.Refresh();
             }
