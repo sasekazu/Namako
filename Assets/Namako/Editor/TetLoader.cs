@@ -4,7 +4,7 @@ using UnityEngine;
 using UnityEditor;
 using System.IO;
 using System.Linq;
-
+using UnityEngine.SceneManagement;
 
 namespace Namako
 {
@@ -31,6 +31,7 @@ namespace Namako
         private float tetraScale = 0.9f;
         private bool invertX = true;
         private bool scaleTo20cm = true;
+        private string savePath = "";
 
         [MenuItem("Window/TetLoader")]
         public static void ShowWindow()
@@ -40,6 +41,8 @@ namespace Namako
 
         void OnGUI()
         {
+            savePath = SceneManager.GetActiveScene().path.Replace(".unity", "-generatedmesh.json");
+
             textAsset = EditorGUILayout.ObjectField("Mesh Source (TextAsset)", textAsset, typeof(Object), true) as TextAsset;
 
             invertX = EditorGUILayout.ToggleLeft("Invert X", invertX);
@@ -58,17 +61,14 @@ namespace Namako
                 NamakoSolver solver = meshObj.AddComponent<NamakoSolver>();
 
                 // Generate Input and Proxy objects
-                inputObj = GameObject.CreatePrimitive(PrimitiveType.Sphere);
-                inputObj.name = inputObjName;
-                inputObj.transform.localScale = Vector3.one * solver.HIPRad * 2.0f;
+                inputObj = new GameObject(inputObjName);
                 inputObj.transform.SetPositionAndRotation(new Vector3(0.0f, 0.2f, 0.0f), Quaternion.identity);
                 proxyObj = GameObject.CreatePrimitive(PrimitiveType.Sphere);
                 proxyObj.name = proxyObjName;
                 proxyObj.transform.localScale = Vector3.one * solver.HIPRad * 2.0f;
-                //proxyObj.transform.SetPositionAndRotation(new Vector3(0.0f, 0.2f, 0.0f), Quaternion.identity);
-                solver.deviceObj = proxyObj;
+                proxyObj.transform.SetPositionAndRotation(inputObj.transform.position, Quaternion.identity);
+                solver.proxyObj = proxyObj;
                 solver.inputObj = inputObj;
-                
             }
 
             if (GUILayout.Button("Clean"))
@@ -76,7 +76,7 @@ namespace Namako
                 DestroyImmediate(GameObject.Find(meshObjName));
                 DestroyImmediate(GameObject.Find(inputObjName));
                 DestroyImmediate(GameObject.Find(proxyObjName));
-                AssetDatabase.DeleteAsset(MeshForJSON.savePath);
+                AssetDatabase.DeleteAsset(savePath);
                 AssetDatabase.Refresh();
             }
         }
@@ -91,7 +91,7 @@ namespace Namako
             System.Array.Copy(tet, obj.tet, tet.Length);
             // Save
             jsonAsset = new TextAsset(JsonUtility.ToJson(obj));
-            AssetDatabase.CreateAsset(jsonAsset, MeshForJSON.savePath);
+            AssetDatabase.CreateAsset(jsonAsset, savePath);
             AssetDatabase.Refresh();
         }
 

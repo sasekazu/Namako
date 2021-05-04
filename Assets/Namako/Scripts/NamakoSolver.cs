@@ -15,10 +15,9 @@ namespace Namako
     public class NamakoSolver : MonoBehaviour
     {
 
-        public GameObject deviceObj;
-        public GameObject inputObj;
         public GameObject visualObj;
-        public Boolean viewNodes = false;
+        public GameObject proxyObj;
+        public GameObject inputObj;
         public float HIPRad = 0.03f;
         public float youngsModulusKPa = 0.6f;
         public float poisson = 0.4f;
@@ -261,7 +260,7 @@ namespace Namako
                 vec3tmp.z = float3tmp[2];
                 if (!float.IsNaN(vec3tmp.magnitude))
                 {
-                    deviceObj.transform.position = vec3tmp;
+                    proxyObj.transform.position = vec3tmp;
                 }
                 Marshal.FreeHGlobal(p_cpp);
                 // Rotation
@@ -269,7 +268,7 @@ namespace Namako
                 GetRotationXYZW(q_cpp);
                 Marshal.Copy(q_cpp, float4tmp, 0, 4);
                 qtmp.Set(float4tmp[0], float4tmp[1], float4tmp[2], float4tmp[3]);
-                deviceObj.transform.rotation = qtmp;
+                proxyObj.transform.rotation = qtmp;
                 Marshal.FreeHGlobal(q_cpp);
                 // Misc
                 SetGravityRb(gravityRb.x, gravityRb.y, gravityRb.z);
@@ -313,27 +312,16 @@ namespace Namako
             }
 
             // Nodes 
-            if (viewNodes)
+            int num_nodes = GetNumNodes();
+            GetNodePos(fem_pos_cpp);
+            Marshal.Copy(fem_pos_cpp, fem_pos, 0, 3 * num_nodes);
+            for (int i = 0; i < num_nodes; ++i)
             {
-                int num_nodes = GetNumNodes();
-                GetNodePos(fem_pos_cpp);
-                Marshal.Copy(fem_pos_cpp, fem_pos, 0, 3 * num_nodes);
-                for (int i = 0; i < num_nodes; ++i)
-                {
-                    nodeObj[i].GetComponent<MeshRenderer>().enabled = true;
-                    vec3tmp.x = fem_pos[3 * i + 0];
-                    vec3tmp.y = fem_pos[3 * i + 1];
-                    vec3tmp.z = fem_pos[3 * i + 2];
-                    nodeObj[i].transform.position = vec3tmp;
-                }
-            }
-            else
-            {
-                int num_nodes = GetNumNodes();
-                for (int i = 0; i < num_nodes; ++i)
-                {
-                    nodeObj[i].GetComponent<MeshRenderer>().enabled = false;
-                }
+                nodeObj[i].GetComponent<MeshRenderer>().enabled = true;
+                vec3tmp.x = fem_pos[3 * i + 0];
+                vec3tmp.y = fem_pos[3 * i + 1];
+                vec3tmp.z = fem_pos[3 * i + 2];
+                nodeObj[i].transform.position = vec3tmp;
             }
         }
 

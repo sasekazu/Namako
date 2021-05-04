@@ -7,7 +7,6 @@ namespace Namako
     {
         public float[] pos;
         public int[] tet;
-        public const string savePath = "Assets/Namako/meshdata_donot_touch.json";
     }
 
 }
