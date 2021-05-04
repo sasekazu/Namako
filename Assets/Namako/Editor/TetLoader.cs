@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using UnityEngine;
 using UnityEditor;
 using System.IO;
+using System.Linq;
 
 
 namespace Namako
@@ -28,6 +29,8 @@ namespace Namako
         public const float r = 0.005f;
         private TextAsset jsonAsset;
         private float tetraScale = 0.9f;
+        private bool invertX = true;
+        private bool scaleTo20cm = true;
 
         [MenuItem("Window/TetLoader")]
         public static void ShowWindow()
@@ -38,6 +41,10 @@ namespace Namako
         void OnGUI()
         {
             textAsset = EditorGUILayout.ObjectField("Mesh Source (TextAsset)", textAsset, typeof(Object), true) as TextAsset;
+
+            invertX = EditorGUILayout.ToggleLeft("Invert X", invertX);
+            scaleTo20cm = EditorGUILayout.ToggleLeft("Scale to 10-cm box", scaleTo20cm);
+            
             if (GUILayout.Button("Load Mesh"))
             {
                 // Generate Mesh object
@@ -54,13 +61,16 @@ namespace Namako
                 inputObj = GameObject.CreatePrimitive(PrimitiveType.Sphere);
                 inputObj.name = inputObjName;
                 inputObj.transform.localScale = Vector3.one * solver.HIPRad * 2.0f;
+                inputObj.transform.SetPositionAndRotation(new Vector3(0.0f, 0.2f, 0.0f), Quaternion.identity);
                 proxyObj = GameObject.CreatePrimitive(PrimitiveType.Sphere);
                 proxyObj.name = proxyObjName;
                 proxyObj.transform.localScale = Vector3.one * solver.HIPRad * 2.0f;
+                //proxyObj.transform.SetPositionAndRotation(new Vector3(0.0f, 0.2f, 0.0f), Quaternion.identity);
                 solver.deviceObj = proxyObj;
                 solver.inputObj = inputObj;
                 
             }
+
             if (GUILayout.Button("Clean"))
             {
                 DestroyImmediate(GameObject.Find(meshObjName));
@@ -142,6 +152,52 @@ namespace Namako
                 for (int k = 0; k < 4; ++k)
                 {
                     tet[4 * j + k] = tetList[j][k];
+                }
+            }
+
+            // Invert x coordinages to modify right-hand system to left-hand system (unity coordinate system)
+            if (invertX)
+            {
+                for (int j = 0; j < nodes; j++)
+                {
+                    pos[3 * j + 0] *= -1;
+                }
+                for (int j = 0; j < tets; ++j)
+                {
+                    int tmp = tet[4 * j + 1];
+                    tet[4 * j + 1] = tet[4 * j + 2];
+                    tet[4 * j + 2] = tmp;
+                }
+            }
+
+            // Scale the model to fit 20cm-20cm-20cm box
+            if (scaleTo20cm)
+            {
+                float[] posx = new float[nodes];
+                float[] posy = new float[nodes];
+                float[] posz = new float[nodes];
+                for(int j=0; j<nodes; ++j)
+                {
+                    posx[j] = pos[3 * j + 0];
+                    posy[j] = pos[3 * j + 1];
+                    posz[j] = pos[3 * j + 2];
+                }
+                float maxx = posx.Max();
+                float maxy = posy.Max();
+                float maxz = posz.Max();
+                float minx = posx.Min();
+                float miny = posy.Min();
+                float minz = posz.Min();
+                float[] width = { maxx - minx, maxy - miny, maxz - minz };
+                Vector3 center = new Vector3((maxx + minx) * 0.5f, (maxy + miny) * 0.5f, (maxz + minz) * 0.5f);
+                float maxw = width.Max();
+                float scale = 0.2f / maxw;
+                Debug.Log(center);
+                for (int j = 0; j < nodes; ++j)
+                {
+                    pos[3 * j + 0] = (pos[3 * j + 0] - center.x) * scale;
+                    pos[3 * j + 1] = (pos[3 * j + 1] - center.y + width[1] * 0.5f) * scale;
+                    pos[3 * j + 2] = (pos[3 * j + 2] - center.z) * scale;
                 }
             }
 

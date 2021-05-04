@@ -19,7 +19,7 @@ namespace Namako
         public GameObject inputObj;
         public GameObject visualObj;
         public Boolean viewNodes = false;
-        public float HIPRad = 0.05f;
+        public float HIPRad = 0.03f;
         public float youngsModulusKPa = 0.6f;
         public float poisson = 0.4f;
         public float density = 1000.0f;
@@ -68,12 +68,12 @@ namespace Namako
             float hip_rad, float young_kPa, float poisson,
             float density, float damping_alpha, float damping_beta,
             IntPtr fem_pos, int fem_nnodes, IntPtr fem_indices4, int fem_nfaces,
-            IntPtr vismesh_pos, int vismesh_nnodes, IntPtr vismesh_indices3, int vismesh_nfaces);
-        [DllImport("namako")] private static extern void UpdateFEM(float dt, IntPtr pos);
+            IntPtr vismesh_pos, int vismesh_nnodes);
         [DllImport("namako")] private static extern int GetNumNodes();
         [DllImport("namako")] private static extern int GetNumElems();
         [DllImport("namako")] private static extern void GetNodePos(IntPtr pos);
         [DllImport("namako")] private static extern void GetRBPos(IntPtr pos);
+        [DllImport("namako")] private static extern void GetVisMeshPos(IntPtr pos);
         [DllImport("namako")] private static extern void Terminate();
         [DllImport("namako")] private static extern void FixBottom(float range_zero_to_one);
         [DllImport("namako")] private static extern void ScaleStiffness(float scale);
@@ -101,67 +101,7 @@ namespace Namako
         {
             tetContainer = GetComponent<TetContainer>();
 
-            mfs = visualObj.GetComponentsInChildren<MeshFilter>();
-
-            n_mesh = mfs.Length;
-            n_tri = new int[n_mesh];
-            n_vert = new int[n_mesh];
-            n_tri_all = 0;
-            n_vert_all = 0;
-            vert_offsets = new int[n_mesh];
-            tri_offsets = new int[n_mesh];
-            for (int i = 0; i < n_mesh; ++i)
-            {
-                Mesh mesh = mfs[i].mesh;
-                // We consider only one submesh context.
-                n_tri[i] = mesh.GetIndices(0).GetLength(0) / 3;
-                n_vert[i] = mesh.vertices.GetLength(0);
-                n_tri_all += n_tri[i];
-                n_vert_all += n_vert[i];
-                for (int j = 0; j < i; ++j)
-                {
-                    vert_offsets[i] += n_vert[j];
-                    tri_offsets[i] += n_tri[j];
-                }
-            }
-
-            vmesh_indices_cpp = Marshal.AllocHGlobal(3 * n_tri_all * sizeof(int));
-            vmesh_pos_cpp = Marshal.AllocHGlobal(3 * n_vert_all * sizeof(float));
-
-            // Prepare vmesh_indices_cpp
-            Vector3[] pos_all = new Vector3[n_vert_all];
-            int[] indices_all = new int[3 * n_tri_all];
-            for (int i = 0; i < n_mesh; ++i)
-            {
-                Mesh mesh = mfs[i].mesh;
-                for (int j = 0; j < n_vert[i]; ++j)
-                {
-                    pos_all[vert_offsets[i] + j] = mesh.vertices[j];
-                }
-                int[] tri = mesh.GetIndices(0);
-                for (int j = 0; j < 3 * n_tri[i]; ++j)
-                {
-                    indices_all[3 * tri_offsets[i] + j] = tri[j] + vert_offsets[i];
-                }
-            }
-
-            Marshal.Copy(indices_all, 0, vmesh_indices_cpp, indices_all.Length);
-
-            // Prepare vmesh_pos_cpp
-            int l = 3 * n_vert_all;
-            float[] vmesh_pos = new float[l];
-            for (int i = 0; i < n_vert_all; ++i)
-            {
-                // Convert local coodinate to world coordinate
-                Vector3 worldpt = visualObj.transform.localToWorldMatrix.MultiplyPoint3x4(pos_all[i]);
-                for (int j = 0; j < 3; ++j)
-                {
-                    vmesh_pos[3 * i + j] = worldpt[j];
-                }
-            }
-            vmesh_pos_cpp = Marshal.AllocHGlobal(l * sizeof(float));
-            Marshal.Copy(vmesh_pos, 0, vmesh_pos_cpp, l);
-
+            // Prepare fem_pos_cpp
             Vector3[] posw = tetContainer.GetNodePosW();
             int num_nodes = posw.Length;
             fem_pos = new float[3 * num_nodes];
@@ -183,16 +123,87 @@ namespace Namako
             fem_tet_cpp = Marshal.AllocHGlobal(4 * num_tets * sizeof(int));
             Marshal.Copy(fem_tet, 0, fem_tet_cpp, 4 * num_tets);
 
+            // Prepare visual mesh information
+            if(visualObj != null)
+            {
+                mfs = visualObj.GetComponentsInChildren<MeshFilter>();
+
+                n_mesh = mfs.Length;
+                n_tri = new int[n_mesh];
+                n_vert = new int[n_mesh];
+                n_tri_all = 0;
+                n_vert_all = 0;
+                vert_offsets = new int[n_mesh];
+                tri_offsets = new int[n_mesh];
+                for (int i = 0; i < n_mesh; ++i)
+                {
+                    Mesh mesh = mfs[i].mesh;
+                    // We consider only one submesh context.
+                    n_tri[i] = mesh.GetIndices(0).GetLength(0) / 3;
+                    n_vert[i] = mesh.vertices.GetLength(0);
+                    n_tri_all += n_tri[i];
+                    n_vert_all += n_vert[i];
+                    for (int j = 0; j < i; ++j)
+                    {
+                        vert_offsets[i] += n_vert[j];
+                        tri_offsets[i] += n_tri[j];
+                    }
+                }
+
+                vmesh_indices_cpp = Marshal.AllocHGlobal(3 * n_tri_all * sizeof(int));
+                vmesh_pos_cpp = Marshal.AllocHGlobal(3 * n_vert_all * sizeof(float));
+
+                // Prepare vmesh_indices_cpp
+                Vector3[] pos_all = new Vector3[n_vert_all];
+                int[] indices_all = new int[3 * n_tri_all];
+                for (int i = 0; i < n_mesh; ++i)
+                {
+                    Mesh mesh = mfs[i].mesh;
+                    for (int j = 0; j < n_vert[i]; ++j)
+                    {
+                        pos_all[vert_offsets[i] + j] = mesh.vertices[j];
+                    }
+                    int[] tri = mesh.GetIndices(0);
+                    for (int j = 0; j < 3 * n_tri[i]; ++j)
+                    {
+                        indices_all[3 * tri_offsets[i] + j] = tri[j] + vert_offsets[i];
+                    }
+                }
+
+                Marshal.Copy(indices_all, 0, vmesh_indices_cpp, indices_all.Length);
+
+                // Prepare vmesh_pos_cpp
+                int l = 3 * n_vert_all;
+                float[] vmesh_pos = new float[l];
+                for (int i = 0; i < n_vert_all; ++i)
+                {
+                    // Convert local coodinate to world coordinate
+                    Vector3 worldpt = visualObj.transform.localToWorldMatrix.MultiplyPoint3x4(pos_all[i]);
+                    for (int j = 0; j < 3; ++j)
+                    {
+                        vmesh_pos[3 * i + j] = worldpt[j];
+                    }
+                }
+                vmesh_pos_cpp = Marshal.AllocHGlobal(l * sizeof(float));
+                Marshal.Copy(vmesh_pos, 0, vmesh_pos_cpp, l);
+
+                managed_array = new float[3 * n_vert_all];
+            } else
+            {
+                vmesh_pos_cpp = IntPtr.Zero;
+                n_vert_all = -1;
+            }
+
             // FEM
             SetupFEM(HIPRad, youngsModulusKPa, poisson, density, damping_alpha, damping_beta,
                 fem_pos_cpp, num_nodes, fem_tet_cpp, num_tets,
-                vmesh_pos_cpp, n_vert_all, vmesh_indices_cpp, n_tri_all);
+                vmesh_pos_cpp, n_vert_all);
+
             nodeObj = tetContainer.NodeObj;
 
-            StartLog();
+            //StartLog();
 
             // Alloc copy buffer
-            managed_array = new float[3 * n_vert_all];
             vec3tmp = new Vector3();
             float3tmp = new float[3];
             float4tmp = new float[4];
@@ -248,7 +259,10 @@ namespace Namako
                 vec3tmp.x = float3tmp[0];
                 vec3tmp.y = float3tmp[1];
                 vec3tmp.z = float3tmp[2];
-                deviceObj.transform.position = vec3tmp;
+                if (!float.IsNaN(vec3tmp.magnitude))
+                {
+                    deviceObj.transform.position = vec3tmp;
+                }
                 Marshal.FreeHGlobal(p_cpp);
                 // Rotation
                 IntPtr q_cpp = Marshal.AllocHGlobal(4 * sizeof(float));
@@ -272,27 +286,30 @@ namespace Namako
             FixBottom(fixHeight);
             SetGravity(gravityFEM.x, gravityFEM.y, gravityFEM.z);
 
-            // Solve FEM
-            UpdateFEM(0.03f, vmesh_pos_cpp);
-
-            // Copy pos_cpp to mesh.vertices
-            Marshal.Copy(vmesh_pos_cpp, managed_array, 0, 3 * n_vert_all);
-            for (int m = 0; m < n_mesh; ++m)
+            if(visualObj != null)
             {
-                Mesh mesh = mfs[m].mesh;
-                Vector3[] pos = mesh.vertices;
-                for (int i = 0; i < n_vert[m]; ++i)
-                {
-                    int pos_id = vert_offsets[m] + i;
-                    pos[i][0] = managed_array[3 * pos_id + 0];
-                    pos[i][1] = managed_array[3 * pos_id + 1];
-                    pos[i][2] = managed_array[3 * pos_id + 2];
-                    pos[i] = visualObj.transform.worldToLocalMatrix.MultiplyPoint3x4(pos[i]);
-                }
+                // Get vertices of visual mesh
+                GetVisMeshPos(vmesh_pos_cpp);
 
-                mesh.vertices = pos;
-                mesh.RecalculateBounds();
-                mesh.RecalculateNormals();
+                // Copy pos_cpp to mesh.vertices
+                Marshal.Copy(vmesh_pos_cpp, managed_array, 0, 3 * n_vert_all);
+                for (int m = 0; m < n_mesh; ++m)
+                {
+                    Mesh mesh = mfs[m].mesh;
+                    Vector3[] pos = mesh.vertices;
+                    for (int i = 0; i < n_vert[m]; ++i)
+                    {
+                        int pos_id = vert_offsets[m] + i;
+                        pos[i][0] = managed_array[3 * pos_id + 0];
+                        pos[i][1] = managed_array[3 * pos_id + 1];
+                        pos[i][2] = managed_array[3 * pos_id + 2];
+                        pos[i] = visualObj.transform.worldToLocalMatrix.MultiplyPoint3x4(pos[i]);
+                    }
+
+                    mesh.vertices = pos;
+                    mesh.RecalculateBounds();
+                    mesh.RecalculateNormals();
+                }
             }
 
             // Nodes 
