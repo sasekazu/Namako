@@ -5,7 +5,8 @@ using UnityEditor;
 using System.IO;
 using System.Linq;
 using UnityEngine.SceneManagement;
-
+using System.Runtime.InteropServices;
+using System;
 namespace Namako
 {
 
@@ -17,6 +18,7 @@ namespace Namako
         private int nodes;
         private int[] tet;
         private int tets;
+        private GameObject visObj;
         private GameObject meshObj;
         private GameObject nodeRootObj;
         private GameObject[] nodeObj;
@@ -33,6 +35,14 @@ namespace Namako
         private bool scaleTo20cm = true;
         private string savePath = "";
 
+        [DllImport("namako")]
+        private static extern void GenerateGridMesh(
+            IntPtr pos, int n_pos, IntPtr indices, int n_indices,
+            [MarshalAs(UnmanagedType.LPArray, SizeParamIndex = 2)] out float[] out_pos,
+            out int n_out_pos,
+            [MarshalAs(UnmanagedType.LPArray, SizeParamIndex = 2)] out int[] out_tet,
+            out int n_out_tet);
+
         [MenuItem("Window/TetLoader")]
         public static void ShowWindow()
         {
@@ -43,10 +53,18 @@ namespace Namako
         {
             savePath = SceneManager.GetActiveScene().path.Replace(".unity", "-generatedmesh.json");
 
-            textAsset = EditorGUILayout.ObjectField("Mesh Source (TextAsset)", textAsset, typeof(Object), true) as TextAsset;
+            visObj = EditorGUILayout.ObjectField("Visual Mesh Object", visObj, typeof(UnityEngine.Object), true) as GameObject;
+
+            if (GUILayout.Button("Generate Mesh"))
+            {
+                GenerateMesh();
+            }
+
+            textAsset = EditorGUILayout.ObjectField("Mesh Source (TextAsset)", textAsset, typeof(UnityEngine.Object), true) as TextAsset;
 
             invertX = EditorGUILayout.ToggleLeft("Invert X", invertX);
             scaleTo20cm = EditorGUILayout.ToggleLeft("Scale to 10-cm box", scaleTo20cm);
+
             
             if (GUILayout.Button("Load Mesh"))
             {
@@ -93,6 +111,22 @@ namespace Namako
             jsonAsset = new TextAsset(JsonUtility.ToJson(obj));
             AssetDatabase.CreateAsset(jsonAsset, savePath);
             AssetDatabase.Refresh();
+        }
+
+
+        void GenerateMesh()
+        {
+            IntPtr pos = IntPtr.Zero;
+            int n_pos = 0;
+            IntPtr indices = IntPtr.Zero;
+            int n_indices = 0;
+            float[] pos_grid = null;
+            int n_pos_grid = 0;
+            int[] tet = null;
+            int n_tet = 0;
+            GenerateGridMesh(pos, n_pos, indices, n_indices,
+                out pos_grid, out n_pos_grid, out tet, out n_tet);
+            Debug.Log(n_pos_grid);
         }
 
         // Read text file and generate pos and tet
