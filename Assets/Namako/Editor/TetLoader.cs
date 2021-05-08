@@ -43,6 +43,11 @@ namespace Namako
             [MarshalAs(UnmanagedType.LPArray, SizeParamIndex = 2)] out int[] out_tet,
             out int n_out_tet);
 
+        [DllImport("namako")]
+        private static extern void test(IntPtr pos, int n_pos, 
+            [MarshalAs(UnmanagedType.LPArray, SizeParamIndex = 2)] out float[] out_pos);
+
+
         [MenuItem("Window/TetLoader")]
         public static void ShowWindow()
         {
@@ -116,17 +121,35 @@ namespace Namako
 
         void GenerateMesh()
         {
-            IntPtr pos = IntPtr.Zero;
-            int n_pos = 0;
-            IntPtr indices = IntPtr.Zero;
-            int n_indices = 0;
+            // Input
+            MeshExtractor mex = new MeshExtractor(visObj);
+            IntPtr vmesh_pos = Marshal.AllocHGlobal(3 * mex.n_vert_all * sizeof(float));
+            Marshal.Copy(mex.vmesh_pos, 0, vmesh_pos, 3 * mex.n_vert_all);
+            IntPtr vmesh_indices = Marshal.AllocHGlobal(3 * mex.n_tri_all * sizeof(int));
+            Marshal.Copy(mex.indices_all, 0, vmesh_indices, 3 * mex.n_tri_all);
+            Debug.Log(mex.n_tri_all);
+            Debug.Log(3 * mex.n_tri_all * sizeof(int));
+            // Output
             float[] pos_grid = null;
             int n_pos_grid = 0;
             int[] tet = null;
             int n_tet = 0;
-            GenerateGridMesh(pos, n_pos, indices, n_indices,
-                out pos_grid, out n_pos_grid, out tet, out n_tet);
-            Debug.Log(n_pos_grid);
+            // Generate mesh
+            //GenerateGridMesh(vmesh_pos, mex.n_vert_all, vmesh_indices, mex.n_tri_all,
+            //    out pos_grid, out n_pos_grid, out tet, out n_tet);
+            Debug.Log(vmesh_pos);
+            Debug.Log(vmesh_indices);
+            IntPtr ptr = Marshal.AllocHGlobal(3 * sizeof(int));
+            //GenerateGridMesh(
+            //    IntPtr.Zero, 
+            //    0, 
+            //    ptr, 
+            //    0, 
+            //    out pos_grid, out n_pos_grid, out tet, out n_tet);
+            test(vmesh_pos, mex.n_vert_all, out pos_grid);
+            Marshal.FreeHGlobal(vmesh_pos);
+            Marshal.FreeHGlobal(vmesh_indices);
+            Debug.Log("GenerateMesh");
         }
 
         // Read text file and generate pos and tet

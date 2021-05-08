@@ -39,7 +39,7 @@ namespace Namako
             tri_offsets = new int[n_mesh];
             for (int i = 0; i < n_mesh; ++i)
             {
-                Mesh mesh = mfs[i].mesh;
+                Mesh mesh = mfs[i].sharedMesh;
                 // We consider only one submesh context.
                 n_tri[i] = mesh.GetIndices(0).GetLength(0) / 3;
                 n_vert[i] = mesh.vertices.GetLength(0);
@@ -56,7 +56,7 @@ namespace Namako
             indices_all = new int[3 * n_tri_all];
             for (int i = 0; i < n_mesh; ++i)
             {
-                Mesh mesh = mfs[i].mesh;
+                Mesh mesh = mfs[i].sharedMesh;
                 for (int j = 0; j < n_vert[i]; ++j)
                 {
                     pos_all[vert_offsets[i] + j] = mesh.vertices[j];
