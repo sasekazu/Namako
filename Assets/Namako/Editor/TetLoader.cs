@@ -10,7 +10,6 @@ using System;
 namespace Namako
 {
 
-
     public class TetLoader : EditorWindow
     {
         private TextAsset textAsset;
@@ -62,7 +61,6 @@ namespace Namako
                 Clean();
                 InitMesh();
                 GenerateMesh();
-                SaveMeshJSON();
                 SetupSolver();
             }
 
@@ -77,7 +75,6 @@ namespace Namako
                 Clean();
                 InitMesh();
                 LoadMesh();
-                SaveMeshJSON();
                 SetupSolver();
             }
 
@@ -118,6 +115,8 @@ namespace Namako
 
         void SetupSolver()
         {
+            SaveMeshJSON();
+
             TetContainer tetContainer = meshObj.AddComponent<TetContainer>();
             tetContainer.meshJsonAsset = jsonAsset;
             tetContainer.tetraScale = tetraScale;
@@ -157,15 +156,6 @@ namespace Namako
 
             nodes = pos_grid_size / 3;
             tets = tet_size / 4;
-
-            // Invert tet indices
-            for(int i=0; i<tets; ++i)
-            {
-                int tmp = tet[4 * i + 1];
-                tet[4 * i + 1] = tet[4 * i + 2];
-                tet[4 * i + 2] = tmp;
-            }
-
             // Generate objects
             GenerateNodeObjects();
             GenerateTetraObjects();
