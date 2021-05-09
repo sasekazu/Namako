@@ -2,7 +2,7 @@
 using System.Collections.Generic;
 using UnityEngine;
 
-public class MoveHIP : MonoBehaviour
+public class MoveSine : MonoBehaviour
 {
 
     public float amp = 0.1f;
@@ -20,6 +20,7 @@ public class MoveHIP : MonoBehaviour
     {
         time += Time.deltaTime;
         Vector3 p = initPos;
-        p.x = initPos.x + amp * ( - Mathf.Cos(2.0f * Mathf.PI * freq * time));
+        p.y = initPos.y + amp * ( - Mathf.Cos(2.0f * Mathf.PI * freq * time));
+        transform.position = p;
     }
 }

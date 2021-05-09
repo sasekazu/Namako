@@ -10,7 +10,7 @@ using System;
 namespace Namako
 {
 
-    public class TetLoader : EditorWindow
+    public class NamakoMeshTool : EditorWindow
     {
         private TextAsset textAsset;
         private float[] pos;
@@ -33,7 +33,7 @@ namespace Namako
         private bool invertX = true;
         private bool scaleTo20cm = true;
         private string savePath = "";
-        private int divisions = 10;
+        private int divisions = 5;
 
         [DllImport("namako")]
         private static extern void GenerateGridMesh(
@@ -44,44 +44,69 @@ namespace Namako
             out int n_out_tet);
         
         
-        [MenuItem("Window/TetLoader")]
+        [MenuItem("Window/NamakoMeshTool")]
         public static void ShowWindow()
         {
-            EditorWindow.GetWindow(typeof(TetLoader));
+            EditorWindow.GetWindow(typeof(NamakoMeshTool));
         }
 
         void OnGUI()
         {
             savePath = SceneManager.GetActiveScene().path.Replace(".unity", "-generatedmesh.json");
-            divisions = EditorGUILayout.IntField("Divisions", divisions);
-            visObj = EditorGUILayout.ObjectField("Visual Mesh Object", visObj, typeof(UnityEngine.Object), true) as GameObject;
 
+            EditorGUILayout.LabelField("Mesh Generator");
+            EditorGUI.indentLevel++;
+            visObj = EditorGUILayout.ObjectField("Visual Mesh Object", visObj, typeof(UnityEngine.Object), true) as GameObject;
+            divisions = EditorGUILayout.IntField("Divisions", divisions);
             if (GUILayout.Button("Generate Mesh"))
             {
-                Clean();
-                InitMesh();
-                GenerateMesh();
-                SetupSolver();
+                if(visObj)
+                {
+                    Clean();
+                    InitMesh();
+                    GenerateMesh();
+                    SetupSolver();
+                }
+                else
+                {
+                    Debug.LogError("Visual Mesh Object not found");
+                }
             }
+
+            EditorGUI.indentLevel--;
+            EditorGUILayout.Space();
+
+            EditorGUILayout.LabelField("Mesh Loader");
+            EditorGUI.indentLevel++;
 
             textAsset = EditorGUILayout.ObjectField("Mesh Source (TextAsset)", textAsset, typeof(UnityEngine.Object), true) as TextAsset;
-
             invertX = EditorGUILayout.ToggleLeft("Invert X", invertX);
             scaleTo20cm = EditorGUILayout.ToggleLeft("Scale to 10-cm box", scaleTo20cm);
-
-            
             if (GUILayout.Button("Load Mesh"))
             {
-                Clean();
-                InitMesh();
-                LoadMesh();
-                SetupSolver();
+                if(textAsset)
+                {
+                    Clean();
+                    InitMesh();
+                    LoadMesh();
+                    SetupSolver();
+                }
+                else
+                {
+                    Debug.LogError("Mesh Source not found");
+                }
             }
 
+            EditorGUI.indentLevel--;
+            EditorGUILayout.Space();
+
+            EditorGUILayout.LabelField("Etc");
+            EditorGUI.indentLevel++;
             if (GUILayout.Button("Clean"))
             {
                 Clean();
             }
+            EditorGUI.indentLevel--;
         }
 
         void Clean()
