@@ -34,20 +34,17 @@ namespace Namako
         private bool invertX = true;
         private bool scaleTo20cm = true;
         private string savePath = "";
+        private int divisions = 10;
 
         [DllImport("namako")]
         private static extern void GenerateGridMesh(
-            IntPtr pos, int n_pos, IntPtr indices, int n_indices,
-            [MarshalAs(UnmanagedType.LPArray, SizeParamIndex = 2)] out float[] out_pos,
+            int divisions, IntPtr pos, int n_pos, IntPtr indices, int n_indices,
+            [MarshalAs(UnmanagedType.LPArray, SizeParamIndex = 6)] out float[] out_pos,
             out int n_out_pos,
-            [MarshalAs(UnmanagedType.LPArray, SizeParamIndex = 2)] out int[] out_tet,
+            [MarshalAs(UnmanagedType.LPArray, SizeParamIndex = 8)] out int[] out_tet,
             out int n_out_tet);
-
-        [DllImport("namako")]
-        private static extern void test(IntPtr pos, int n_pos, 
-            [MarshalAs(UnmanagedType.LPArray, SizeParamIndex = 2)] out float[] out_pos);
-
-
+        
+        
         [MenuItem("Window/TetLoader")]
         public static void ShowWindow()
         {
@@ -57,12 +54,16 @@ namespace Namako
         void OnGUI()
         {
             savePath = SceneManager.GetActiveScene().path.Replace(".unity", "-generatedmesh.json");
-
+            divisions = EditorGUILayout.IntField("Divisions", divisions);
             visObj = EditorGUILayout.ObjectField("Visual Mesh Object", visObj, typeof(UnityEngine.Object), true) as GameObject;
 
             if (GUILayout.Button("Generate Mesh"))
             {
+                Clean();
+                InitMesh();
                 GenerateMesh();
+                SaveMeshJSON();
+                SetupSolver();
             }
 
             textAsset = EditorGUILayout.ObjectField("Mesh Source (TextAsset)", textAsset, typeof(UnityEngine.Object), true) as TextAsset;
@@ -73,35 +74,26 @@ namespace Namako
             
             if (GUILayout.Button("Load Mesh"))
             {
-                // Generate Mesh object
-                meshObj = new GameObject();
-                meshObj.name = meshObjName;
+                Clean();
+                InitMesh();
                 LoadMesh();
                 SaveMeshJSON();
-                TetContainer tetContainer = meshObj.AddComponent<TetContainer>();
-                tetContainer.meshJsonAsset = jsonAsset;
-                tetContainer.tetraScale = tetraScale;
-                NamakoSolver solver = meshObj.AddComponent<NamakoSolver>();
-
-                // Generate Input and Proxy objects
-                inputObj = new GameObject(inputObjName);
-                inputObj.transform.SetPositionAndRotation(new Vector3(0.0f, 0.2f, 0.0f), Quaternion.identity);
-                proxyObj = GameObject.CreatePrimitive(PrimitiveType.Sphere);
-                proxyObj.name = proxyObjName;
-                proxyObj.transform.localScale = Vector3.one * solver.HIPRad * 2.0f;
-                proxyObj.transform.SetPositionAndRotation(inputObj.transform.position, Quaternion.identity);
-                solver.proxyObj = proxyObj;
-                solver.inputObj = inputObj;
+                SetupSolver();
             }
 
             if (GUILayout.Button("Clean"))
             {
-                DestroyImmediate(GameObject.Find(meshObjName));
-                DestroyImmediate(GameObject.Find(inputObjName));
-                DestroyImmediate(GameObject.Find(proxyObjName));
-                AssetDatabase.DeleteAsset(savePath);
-                AssetDatabase.Refresh();
+                Clean();
             }
+        }
+
+        void Clean()
+        {
+            DestroyImmediate(GameObject.Find(meshObjName));
+            DestroyImmediate(GameObject.Find(inputObjName));
+            DestroyImmediate(GameObject.Find(proxyObjName));
+            AssetDatabase.DeleteAsset(savePath);
+            AssetDatabase.Refresh();
         }
 
         void SaveMeshJSON()
@@ -118,6 +110,33 @@ namespace Namako
             AssetDatabase.Refresh();
         }
 
+        void InitMesh()
+        {
+            meshObj = new GameObject();
+            meshObj.name = meshObjName;
+        }
+
+        void SetupSolver()
+        {
+            TetContainer tetContainer = meshObj.AddComponent<TetContainer>();
+            tetContainer.meshJsonAsset = jsonAsset;
+            tetContainer.tetraScale = tetraScale;
+            NamakoSolver solver = meshObj.AddComponent<NamakoSolver>();
+
+            // Generate Input and Proxy objects
+            inputObj = new GameObject(inputObjName);
+            inputObj.transform.SetPositionAndRotation(new Vector3(0.0f, 0.2f, 0.0f), Quaternion.identity);
+            proxyObj = GameObject.CreatePrimitive(PrimitiveType.Sphere);
+            proxyObj.name = proxyObjName;
+            proxyObj.transform.localScale = Vector3.one * solver.HIPRad * 2.0f;
+            proxyObj.transform.SetPositionAndRotation(inputObj.transform.position, Quaternion.identity);
+            solver.proxyObj = proxyObj;
+            solver.inputObj = inputObj;
+            if (visObj)
+            {
+                solver.visualObj = visObj;
+            }
+        }
 
         void GenerateMesh()
         {
@@ -127,29 +146,29 @@ namespace Namako
             Marshal.Copy(mex.vmesh_pos, 0, vmesh_pos, 3 * mex.n_vert_all);
             IntPtr vmesh_indices = Marshal.AllocHGlobal(3 * mex.n_tri_all * sizeof(int));
             Marshal.Copy(mex.indices_all, 0, vmesh_indices, 3 * mex.n_tri_all);
-            Debug.Log(mex.n_tri_all);
-            Debug.Log(3 * mex.n_tri_all * sizeof(int));
             // Output
-            float[] pos_grid = null;
-            int n_pos_grid = 0;
-            int[] tet = null;
-            int n_tet = 0;
+            int pos_grid_size = 0;
+            int tet_size = 0;
             // Generate mesh
-            //GenerateGridMesh(vmesh_pos, mex.n_vert_all, vmesh_indices, mex.n_tri_all,
-            //    out pos_grid, out n_pos_grid, out tet, out n_tet);
-            Debug.Log(vmesh_pos);
-            Debug.Log(vmesh_indices);
-            IntPtr ptr = Marshal.AllocHGlobal(3 * sizeof(int));
-            //GenerateGridMesh(
-            //    IntPtr.Zero, 
-            //    0, 
-            //    ptr, 
-            //    0, 
-            //    out pos_grid, out n_pos_grid, out tet, out n_tet);
-            test(vmesh_pos, mex.n_vert_all, out pos_grid);
+            GenerateGridMesh(divisions, vmesh_pos, mex.n_vert_all, vmesh_indices, mex.n_tri_all,
+            out pos, out pos_grid_size, out tet, out tet_size);
             Marshal.FreeHGlobal(vmesh_pos);
             Marshal.FreeHGlobal(vmesh_indices);
-            Debug.Log("GenerateMesh");
+
+            nodes = pos_grid_size / 3;
+            tets = tet_size / 4;
+
+            // Invert tet indices
+            for(int i=0; i<tets; ++i)
+            {
+                int tmp = tet[4 * i + 1];
+                tet[4 * i + 1] = tet[4 * i + 2];
+                tet[4 * i + 2] = tmp;
+            }
+
+            // Generate objects
+            GenerateNodeObjects();
+            GenerateTetraObjects();
         }
 
         // Read text file and generate pos and tet
@@ -264,6 +283,8 @@ namespace Namako
         }
 
 
+        // Generate node objects (nodeObj) 
+        // based on "nodes", "pos"
         void GenerateNodeObjects()
         {
             nodeRootObj = new GameObject();
@@ -286,7 +307,8 @@ namespace Namako
             DestroyImmediate(go);
         }
 
-
+        // Generate tetra objects 
+        // based on "tets" and "tet"
         void GenerateTetraObjects()
         {
             tetObj = GameObject.CreatePrimitive(PrimitiveType.Cube);
