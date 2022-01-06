@@ -33,7 +33,14 @@ namespace Namako
         public float waitTime = 0.5f;
         public Vector3 gravityFEM = Vector3.zero;
         public Vector3 gravityRb = Vector3.zero;
-        
+        public enum CollisionDetectionType
+        {
+            // from namako.h
+            FEMVTXVsRBSDF = 0,
+            FEMSDFVsRBVTX = 1
+        }
+        [SerializeField] CollisionDetectionType cdtype = CollisionDetectionType.FEMVTXVsRBSDF;
+
         private float time = 0.0f;
         private IntPtr vmesh_pos_cpp;
         private IntPtr vmesh_indices_cpp;
@@ -60,7 +67,9 @@ namespace Namako
             float hip_rad, float young_kPa, float poisson,
             float density, float damping_alpha, float damping_beta,
             IntPtr fem_pos, int fem_nnodes, IntPtr fem_indices4, int fem_nfaces,
-            IntPtr vismesh_pos, int vismesh_nnodes);
+            IntPtr vismesh_pos, int vismesh_nnodes,
+            IntPtr vismesh_faces, int vismesh_nfaces,
+            int collision_detection_mode);
         [DllImport("namako")] private static extern int GetNumNodes();
         [DllImport("namako")] private static extern int GetNumElems();
         [DllImport("namako")] private static extern void GetNodePos(IntPtr pos);
@@ -138,13 +147,15 @@ namespace Namako
 
             // FEM
             int vmesh_vertices = -1;
+            int vmesh_nfaces = -1;
             if (extractor != null)
             {
                 vmesh_vertices = extractor.n_vert_all;
+                vmesh_nfaces = extractor.n_tri_all;
             }
             SetupFEM(HIPRad, youngsModulusKPa, poisson, density, damping_alpha, damping_beta,
                 fem_pos_cpp, num_nodes, fem_tet_cpp, num_tets,
-                vmesh_pos_cpp, vmesh_vertices);
+                vmesh_pos_cpp, vmesh_vertices, vmesh_indices_cpp, vmesh_nfaces, (int)cdtype);
 
             nodeObj = tetContainer.NodeObj;
 
