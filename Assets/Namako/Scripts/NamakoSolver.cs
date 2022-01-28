@@ -83,6 +83,9 @@ namespace Namako
         [DllImport("namako")] private static extern void GetRotationXYZW(IntPtr xyzw);
         [DllImport("namako")] private static extern void SetHandleOffset(float x, float y, float z);
         [DllImport("namako")] private static extern float GetScaledYoungsModulus();
+        [DllImport("namako", EntryPoint = "IsContact")] private static extern bool IsContactC();
+        [DllImport("namako")] private static extern void GetDisplayingForce(IntPtr force);
+        [DllImport("namako")] private static extern void GetContactNormal(IntPtr n);
         [DllImport("namako")] private static extern double GetCalcTime();
         [DllImport("namako")] private static extern double GetLoopTime();
         [DllImport("namako")] private static extern void SetHapticEnabled(bool enabled);
@@ -275,6 +278,30 @@ namespace Namako
             Marshal.FreeHGlobal(fem_pos_cpp);
             Marshal.FreeHGlobal(fem_tet_cpp);
             Terminate();
+        }
+
+        public Vector3 GetForce()
+        {
+            IntPtr ptr = Marshal.AllocHGlobal(3 * sizeof(float));
+            var arr = new float[3];
+            GetDisplayingForce(ptr);
+            Marshal.Copy(ptr, arr, 0, 3);
+            Marshal.FreeHGlobal(ptr);
+            return new Vector3(arr[0], arr[1], arr[2]);
+        }
+
+        public Vector3 GetNormal()
+        {
+            IntPtr ptr = Marshal.AllocHGlobal(3 * sizeof(float));
+            var arr = new float[3];
+            GetContactNormal(ptr);
+            Marshal.Copy(ptr, arr, 0, 3);
+            Marshal.FreeHGlobal(ptr);
+            return new Vector3(arr[0], arr[1], arr[2]);
+        }
+        public bool IsContact()
+        {
+            return IsContactC();
         }
     }
 
