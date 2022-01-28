@@ -311,6 +311,8 @@ namespace Namako
             var goMat = new Material(goRend.sharedMaterial);
             goMat.color = Color.cyan;
             goRend.sharedMaterial = goMat;
+            goRend.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+            goRend.receiveShadows = false;
             go.transform.localScale = new Vector3(r, r, r);
             for (int j = 0; j < nodes; ++j)
             {
