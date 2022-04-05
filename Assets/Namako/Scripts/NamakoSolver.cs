@@ -6,6 +6,7 @@ using UnityEditor;
 #endif
 using System;
 using System.Runtime.InteropServices;
+using System.Linq;
 
 
 namespace Namako
@@ -39,15 +40,20 @@ namespace Namako
             FEMVTXVsRBSDF = 0,
             FEMSDFVsRBVTX = 1
         }
+        public bool stressVisualization = false;
+        public float stressLowerLimit = 0.0f;
+        public float stressUpperLimit = 200.0f;
         [SerializeField] CollisionDetectionType cdtype = CollisionDetectionType.FEMVTXVsRBSDF;
 
         private float time = 0.0f;
         private IntPtr vmesh_pos_cpp;
         private IntPtr vmesh_indices_cpp;
+        private IntPtr vmesh_stress_cpp;
+        private float[] vmesh_pos;
+        private float[] vmesh_stress;
         private float[] fem_pos;
         private IntPtr fem_pos_cpp;
         private IntPtr fem_tet_cpp;
-        private float[] managed_array;
 
         private Vector3 vec3tmp;
         private float[] float3tmp;
@@ -75,6 +81,7 @@ namespace Namako
         [DllImport("namako")] private static extern void GetNodePos(IntPtr pos);
         [DllImport("namako")] private static extern void GetRBPos(IntPtr pos);
         [DllImport("namako")] private static extern void GetVisMeshPos(IntPtr pos);
+        [DllImport("namako")] private static extern void GetVisMeshStress(IntPtr stress);
         [DllImport("namako")] private static extern void Terminate();
         [DllImport("namako")] private static extern void FixBottom(float range_zero_to_one);
         [DllImport("namako")] private static extern void ScaleStiffness(float scale);
@@ -142,10 +149,14 @@ namespace Namako
                     extractor.vmesh_pos, 0,
                     vmesh_pos_cpp, 3 * extractor.n_vert_all);
 
-                managed_array = new float[3 * extractor.n_vert_all];
+                vmesh_pos = new float[3 * extractor.n_vert_all];
+
+                vmesh_stress_cpp = Marshal.AllocHGlobal(extractor.n_vert_all * sizeof(float));
+                vmesh_stress = new float[extractor.n_vert_all];
             } else
             {
                 vmesh_pos_cpp = IntPtr.Zero;
+                vmesh_stress_cpp = IntPtr.Zero;
             }
 
             // FEM
@@ -193,7 +204,7 @@ namespace Namako
                     ct += t;
                 }
                 ct /= calcTime.Count;
-                Debug.Log("time " + ct);
+                Debug.Log("Calc time: " + ct.ToString($"F2") + " [ms/loop]");
                 calcTime.Clear();
             }
 
@@ -252,8 +263,15 @@ namespace Namako
                 // Get vertices of visual mesh
                 GetVisMeshPos(vmesh_pos_cpp);
                 // Copy pos_cpp to mesh.vertices
-                Marshal.Copy(vmesh_pos_cpp, managed_array, 0, 3 * extractor.n_vert_all);
-                extractor.UpdatePosition(managed_array);
+                Marshal.Copy(vmesh_pos_cpp, vmesh_pos, 0, 3 * extractor.n_vert_all);
+                extractor.UpdatePosition(vmesh_pos);
+
+                if (stressVisualization)
+                {
+                    GetVisMeshStress(vmesh_stress_cpp);
+                    Marshal.Copy(vmesh_stress_cpp, vmesh_stress, 0, extractor.n_vert_all);
+                    extractor.UpdateVertexColor(vmesh_stress, stressLowerLimit, stressUpperLimit);
+                }
             }
 
             // Nodes 
@@ -275,6 +293,7 @@ namespace Namako
         {
             Marshal.FreeHGlobal(vmesh_indices_cpp);
             Marshal.FreeHGlobal(vmesh_pos_cpp);
+            Marshal.FreeHGlobal(vmesh_stress_cpp);
             Marshal.FreeHGlobal(fem_pos_cpp);
             Marshal.FreeHGlobal(fem_tet_cpp);
             Terminate();

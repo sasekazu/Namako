@@ -102,5 +102,28 @@ namespace Namako
                 mesh.RecalculateNormals();
             }
         }
+
+        public void UpdateVertexColor(float[] scalar, float lowerLimit, float upperLimit)
+        {
+            for (int m = 0; m < n_mesh; ++m)
+            {
+                Mesh mesh = mfs[m].mesh;
+                Vector3[] pos = mesh.vertices;
+                Color[] colors = new Color[pos.Length];
+                for (int i = 0; i < n_vert[m]; ++i)
+                {
+                    int pos_id = vert_offsets[m] + i;
+                    float t = (scalar[pos_id] - lowerLimit) / (upperLimit - lowerLimit);
+
+                    // blue - green - red
+                    if (t < 0.5)
+                        colors[i] = Color.Lerp(Color.blue, Color.green, t * 2.0f);
+                    else
+                        colors[i] = Color.Lerp(Color.green, Color.red, (t - 0.5f) * 2.0f);
+                }
+
+                mesh.colors = colors;
+            }
+        }
     }
 }
