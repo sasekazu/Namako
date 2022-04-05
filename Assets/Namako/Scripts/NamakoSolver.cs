@@ -16,23 +16,35 @@ namespace Namako
     public class NamakoSolver : MonoBehaviour
     {
 
+        [Tooltip("FEMに埋め込む描画用オブジェクト"), Header("Input Objects")]
         public GameObject visualObj;
+        [Tooltip("描画用剛体オブジェクト")]
         public GameObject proxyObj;
+        [Tooltip("剛体位置入力用オブジェクト")]
         public GameObject inputObj;
+        [Tooltip("剛体半径"), Range(0.001f, 0.1f), Header("Simulation Parameters")]
         public float HIPRad = 0.03f;
+        [Tooltip("ヤング率 [kPa]"), Range(0.0f, 10.0f)]
         public float youngsModulusKPa = 0.6f;
+        [Tooltip("ポアソン比"), Range(0.0f, 0.49f)]
         public float poisson = 0.4f;
+        [Tooltip("密度"), Range(0.0f, 2000.0f)]
         public float density = 1000.0f;
+        [Tooltip("ダンパ係数α"), Range(0.0f, 1.0f)]
         public float damping_alpha = 0.0f;
+        [Tooltip("ダンパ係数β"), Range(0.0f, 1.0f)]
         public float damping_beta = 0.1f;
+        [Tooltip("疑似摩擦係数（0-1）"), Range(0, 1)]
         public float friction = 0.2f;
+        [Tooltip("固定高さ（底面から, 0-1）"), Range(0, 1)]
         public float fixHeight = 0.01f;
+        [Tooltip("バーチャルカップリングのばね定数"), Range(0.0f, 1000.0f)]
         public float VCStiffness = 300.0f;
+        [Tooltip("グローバルダンピング係数"), Range(0.0f, 1.0f)]
         public float globalDamping = 0.0f;
-        public bool hapticEnabled = true;
-        public bool floorEnabled = true;
-        public float waitTime = 0.5f;
+        [Tooltip("柔軟物体にかかる重力")]
         public Vector3 gravityFEM = Vector3.zero;
+        [Tooltip("剛体にかかる重力")]
         public Vector3 gravityRb = Vector3.zero;
         public enum CollisionDetectionType
         {
@@ -40,10 +52,21 @@ namespace Namako
             FEMVTXVsRBSDF = 0,
             FEMSDFVsRBVTX = 1
         }
-        public bool stressVisualization = false;
-        public float stressLowerLimit = 0.0f;
-        public float stressUpperLimit = 200.0f;
         [SerializeField] CollisionDetectionType cdtype = CollisionDetectionType.FEMVTXVsRBSDF;
+
+        [Tooltip("力覚提示を有効にする"), Header("Haptics")]
+        public bool hapticEnabled = true;
+        [Tooltip("床に触れるようにする")]
+        public bool floorEnabled = true;
+        [Tooltip("力覚提示を開始するまでの猶予時間[s]")]
+        public float waitTime = 0.5f;
+
+        [Tooltip("応力の可視化を有効にする"), Header("Stress Visualization")]
+        public bool stressVisualization = false;
+        [Tooltip("応力描画の下限値")]
+        public float stressLowerLimit = 0.0f;
+        [Tooltip("応力描画の上限値")]
+        public float stressUpperLimit = 200.0f;
 
         private float time = 0.0f;
         private IntPtr vmesh_pos_cpp;
@@ -54,11 +77,6 @@ namespace Namako
         private float[] fem_pos;
         private IntPtr fem_pos_cpp;
         private IntPtr fem_tet_cpp;
-
-        private Vector3 vec3tmp;
-        private float[] float3tmp;
-        private float[] float4tmp;
-        private Quaternion qtmp;
 
         private MeshExtractor extractor = null;
         private TetContainer tetContainer;
@@ -175,12 +193,6 @@ namespace Namako
 
             //StartLog();
 
-            // Alloc copy buffer
-            vec3tmp = new Vector3();
-            float3tmp = new float[3];
-            float4tmp = new float[4];
-            qtmp = new Quaternion();
-
             SetFloorHapticsEnabled(true);
 
             Debug.Log("Number of nodes: " + GetNumNodes());
@@ -227,21 +239,23 @@ namespace Namako
                 // Position
                 IntPtr p_cpp = Marshal.AllocHGlobal(3 * sizeof(float));
                 GetRBPos(p_cpp);
-                Marshal.Copy(p_cpp, float3tmp, 0, 3);
-                vec3tmp.x = float3tmp[0];
-                vec3tmp.y = float3tmp[1];
-                vec3tmp.z = float3tmp[2];
-                if (!float.IsNaN(vec3tmp.magnitude))
+                float[] p = new float[3];
+                Vector3 pVec;
+                Marshal.Copy(p_cpp, p, 0, 3);
+                pVec.x = p[0];
+                pVec.y = p[1];
+                pVec.z = p[2];
+                if (!float.IsNaN(pVec.magnitude))
                 {
-                    proxyObj.transform.position = vec3tmp;
+                    proxyObj.transform.position = pVec;
                 }
                 Marshal.FreeHGlobal(p_cpp);
                 // Rotation
                 IntPtr q_cpp = Marshal.AllocHGlobal(4 * sizeof(float));
                 GetRotationXYZW(q_cpp);
-                Marshal.Copy(q_cpp, float4tmp, 0, 4);
-                qtmp.Set(float4tmp[0], float4tmp[1], float4tmp[2], float4tmp[3]);
-                proxyObj.transform.rotation = qtmp;
+                float[] q = new float[4];
+                Marshal.Copy(q_cpp, q, 0, 4);
+                proxyObj.transform.rotation = new Quaternion(q[0], q[1], q[2], q[3]);
                 Marshal.FreeHGlobal(q_cpp);
                 // Misc
                 SetGravityRb(gravityRb.x, gravityRb.y, gravityRb.z);
@@ -281,10 +295,7 @@ namespace Namako
             for (int i = 0; i < num_nodes; ++i)
             {
                 nodeObj[i].GetComponent<MeshRenderer>().enabled = true;
-                vec3tmp.x = fem_pos[3 * i + 0];
-                vec3tmp.y = fem_pos[3 * i + 1];
-                vec3tmp.z = fem_pos[3 * i + 2];
-                nodeObj[i].transform.position = vec3tmp;
+                nodeObj[i].transform.position = new Vector3(fem_pos[3*i+0], fem_pos[3*i+1], fem_pos[3*i+2]);
             }
         }
 
