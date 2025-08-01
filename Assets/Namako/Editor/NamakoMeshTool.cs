@@ -28,11 +28,13 @@ namespace Namako
         private string meshObjName = "TetMesh";
         private string proxyObjName = "Proxy";
         private string inputObjName = "Input";
+        private string surfaceMeshObjName = "SurfaceMesh";
         public const float r = 0.005f;
         private TextAsset jsonAsset;
         private float tetraScale = 0.9f;
         private bool invertX = true;
         private bool scaleTo20cm = true;
+        private bool generateSurfaceMesh = false;
         private string savePath = "";
         private int divisions = 5;
 
@@ -83,6 +85,7 @@ namespace Namako
             textAsset = EditorGUILayout.ObjectField("Mesh Source (TextAsset)", textAsset, typeof(UnityEngine.Object), true) as TextAsset;
             invertX = EditorGUILayout.ToggleLeft("Invert X", invertX);
             scaleTo20cm = EditorGUILayout.ToggleLeft("Scale to 10-cm box", scaleTo20cm);
+            generateSurfaceMesh = EditorGUILayout.ToggleLeft("Generate Surface Mesh", generateSurfaceMesh);
             if (GUILayout.Button("Load Mesh"))
             {
                 if(textAsset)
@@ -115,6 +118,7 @@ namespace Namako
             DestroyImmediate(GameObject.Find(meshObjName));
             DestroyImmediate(GameObject.Find(inputObjName));
             DestroyImmediate(GameObject.Find(proxyObjName));
+            DestroyImmediate(GameObject.Find(surfaceMeshObjName));
             AssetDatabase.DeleteAsset(savePath);
             AssetDatabase.Refresh();
         }
@@ -312,6 +316,13 @@ namespace Namako
             // Create GameObjects
             GenerateNodeObjects();
             GenerateTetraObjects();
+            
+            // 表面メッシュを抽出してGameObjectとして保存（チェックボックスがオンの場合のみ）
+            if (generateSurfaceMesh)
+            {
+                GameObject surfaceMeshObj = TetrahedralMeshTools.ExtractSurfaceMesh(pos, tet, nodes, tets, meshObj.transform.parent, surfaceMeshObjName);
+                visObj = surfaceMeshObj; // 作成した表面メッシュをvisObjに格納
+            }
         }
 
 
