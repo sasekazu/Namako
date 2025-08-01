@@ -127,10 +127,20 @@ namespace Namako
             System.Array.Copy(pos, obj.pos, pos.Length);
             obj.tet = new int[tet.Length];
             System.Array.Copy(tet, obj.tet, tet.Length);
-            // Save
-            jsonAsset = new TextAsset(JsonUtility.ToJson(obj));
-            AssetDatabase.CreateAsset(jsonAsset, savePath);
+
+            // JSONデータを文字列として取得
+            string jsonString = JsonUtility.ToJson(obj);
+
+            // ファイルシステムに直接書き込み
+            string fullPath = Application.dataPath.Replace("Assets", "") + savePath;
+            System.IO.File.WriteAllText(fullPath, jsonString);
+
+            // Unityにファイルをインポートさせる
+            AssetDatabase.ImportAsset(savePath);
             AssetDatabase.Refresh();
+
+            // TextAssetとして読み込み
+            jsonAsset = AssetDatabase.LoadAssetAtPath<TextAsset>(savePath);
         }
 
         void InitMesh()
