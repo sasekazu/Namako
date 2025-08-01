@@ -1,12 +1,13 @@
-﻿using System.Collections;
+﻿using System;
+using System.Collections;
 using System.Collections.Generic;
-using UnityEngine;
-using UnityEditor;
+using System.Globalization;
 using System.IO;
 using System.Linq;
-using UnityEngine.SceneManagement;
 using System.Runtime.InteropServices;
-using System;
+using UnityEditor;
+using UnityEngine;
+using UnityEngine.SceneManagement;
 namespace Namako
 {
 
@@ -204,10 +205,14 @@ namespace Namako
             // Read nodes
             for (int j = 0; j < nodes; j++)
             {
-                string[] tmp = lines[i].Split(' ');
-                pos[3 * j + 0] = float.Parse(tmp[1]);
-                pos[3 * j + 1] = float.Parse(tmp[2]);
-                pos[3 * j + 2] = float.Parse(tmp[3]);
+                string[] tmp = lines[i]
+                    .TrimEnd('\r', '\n')
+                    .Split(new[] { ' ', '\t' }, StringSplitOptions.RemoveEmptyEntries);
+
+                pos[3 * j + 0] = float.Parse(tmp[1], CultureInfo.InvariantCulture);
+                pos[3 * j + 1] = float.Parse(tmp[2], CultureInfo.InvariantCulture);
+                pos[3 * j + 2] = float.Parse(tmp[3], CultureInfo.InvariantCulture);
+
                 ++i;
             }
             // Read tetra
@@ -223,7 +228,9 @@ namespace Namako
             const int TETRA = 4; // Tetra ID of GMSH
             for (int j = 0; j < elms; ++j)
             {
-                string[] tmp = lines[i].Split(' ');
+                string[] tmp = lines[i]
+                    .TrimEnd('\r', '\n')
+                    .Split((char[])null, StringSplitOptions.RemoveEmptyEntries);
                 if (System.Int32.Parse(tmp[1]) == TETRA)
                 {
                     int tags = System.Int32.Parse(tmp[2]);
