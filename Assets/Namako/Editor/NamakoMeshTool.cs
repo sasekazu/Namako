@@ -1,12 +1,13 @@
-﻿using System.Collections;
+﻿using System;
+using System.Collections;
 using System.Collections.Generic;
-using UnityEngine;
-using UnityEditor;
+using System.Globalization;
 using System.IO;
 using System.Linq;
-using UnityEngine.SceneManagement;
 using System.Runtime.InteropServices;
-using System;
+using UnityEditor;
+using UnityEngine;
+using UnityEngine.SceneManagement;
 namespace Namako
 {
 
@@ -27,11 +28,13 @@ namespace Namako
         private string meshObjName = "TetMesh";
         private string proxyObjName = "Proxy";
         private string inputObjName = "Input";
+        private string surfaceMeshObjName = "SurfaceMesh";
         public const float r = 0.005f;
         private TextAsset jsonAsset;
         private float tetraScale = 0.9f;
         private bool invertX = true;
         private bool scaleTo20cm = true;
+        private bool generateSurfaceMesh = false;
         private string savePath = "";
         private int divisions = 5;
 
@@ -82,6 +85,7 @@ namespace Namako
             textAsset = EditorGUILayout.ObjectField("Mesh Source (TextAsset)", textAsset, typeof(UnityEngine.Object), true) as TextAsset;
             invertX = EditorGUILayout.ToggleLeft("Invert X", invertX);
             scaleTo20cm = EditorGUILayout.ToggleLeft("Scale to 10-cm box", scaleTo20cm);
+            generateSurfaceMesh = EditorGUILayout.ToggleLeft("Generate Surface Mesh", generateSurfaceMesh);
             if (GUILayout.Button("Load Mesh"))
             {
                 if(textAsset)
@@ -114,6 +118,7 @@ namespace Namako
             DestroyImmediate(GameObject.Find(meshObjName));
             DestroyImmediate(GameObject.Find(inputObjName));
             DestroyImmediate(GameObject.Find(proxyObjName));
+            DestroyImmediate(GameObject.Find(surfaceMeshObjName));
             AssetDatabase.DeleteAsset(savePath);
             AssetDatabase.Refresh();
         }
@@ -126,10 +131,20 @@ namespace Namako
             System.Array.Copy(pos, obj.pos, pos.Length);
             obj.tet = new int[tet.Length];
             System.Array.Copy(tet, obj.tet, tet.Length);
-            // Save
-            jsonAsset = new TextAsset(JsonUtility.ToJson(obj));
-            AssetDatabase.CreateAsset(jsonAsset, savePath);
+
+            // JSONデータを文字列として取得
+            string jsonString = JsonUtility.ToJson(obj);
+
+            // ファイルシステムに直接書き込み
+            string fullPath = Application.dataPath.Replace("Assets", "") + savePath;
+            System.IO.File.WriteAllText(fullPath, jsonString);
+
+            // Unityにファイルをインポートさせる
+            AssetDatabase.ImportAsset(savePath);
             AssetDatabase.Refresh();
+
+            // TextAssetとして読み込み
+            jsonAsset = AssetDatabase.LoadAssetAtPath<TextAsset>(savePath);
         }
 
         void InitMesh()
@@ -204,10 +219,14 @@ namespace Namako
             // Read nodes
             for (int j = 0; j < nodes; j++)
             {
-                string[] tmp = lines[i].Split(' ');
-                pos[3 * j + 0] = float.Parse(tmp[1]);
-                pos[3 * j + 1] = float.Parse(tmp[2]);
-                pos[3 * j + 2] = float.Parse(tmp[3]);
+                string[] tmp = lines[i]
+                    .TrimEnd('\r', '\n')
+                    .Split(new[] { ' ', '\t' }, StringSplitOptions.RemoveEmptyEntries);
+
+                pos[3 * j + 0] = float.Parse(tmp[1], CultureInfo.InvariantCulture);
+                pos[3 * j + 1] = float.Parse(tmp[2], CultureInfo.InvariantCulture);
+                pos[3 * j + 2] = float.Parse(tmp[3], CultureInfo.InvariantCulture);
+
                 ++i;
             }
             // Read tetra
@@ -223,7 +242,9 @@ namespace Namako
             const int TETRA = 4; // Tetra ID of GMSH
             for (int j = 0; j < elms; ++j)
             {
-                string[] tmp = lines[i].Split(' ');
+                string[] tmp = lines[i]
+                    .TrimEnd('\r', '\n')
+                    .Split((char[])null, StringSplitOptions.RemoveEmptyEntries);
                 if (System.Int32.Parse(tmp[1]) == TETRA)
                 {
                     int tags = System.Int32.Parse(tmp[2]);
@@ -295,6 +316,13 @@ namespace Namako
             // Create GameObjects
             GenerateNodeObjects();
             GenerateTetraObjects();
+            
+            // 表面メッシュを抽出してGameObjectとして保存（チェックボックスがオンの場合のみ）
+            if (generateSurfaceMesh)
+            {
+                GameObject surfaceMeshObj = TetrahedralMeshTools.ExtractSurfaceMesh(pos, tet, nodes, tets, meshObj.transform.parent, surfaceMeshObjName);
+                visObj = surfaceMeshObj; // 作成した表面メッシュをvisObjに格納
+            }
         }
 
 
