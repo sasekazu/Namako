@@ -38,15 +38,6 @@ namespace Namako
         private string savePath = "";
         private int divisions = 5;
 
-        [DllImport("namako")]
-        private static extern void GenerateGridMesh(
-            int divisions, IntPtr pos, int n_pos, IntPtr indices, int n_indices,
-            [MarshalAs(UnmanagedType.LPArray, SizeParamIndex = 6)] out float[] out_pos,
-            out int n_out_pos,
-            [MarshalAs(UnmanagedType.LPArray, SizeParamIndex = 8)] out int[] out_tet,
-            out int n_out_tet);
-        
-        
         [MenuItem("Window/NamakoMeshTool")]
         public static void ShowWindow()
         {
@@ -189,7 +180,7 @@ namespace Namako
             int pos_grid_size = 0;
             int tet_size = 0;
             // Generate mesh
-            GenerateGridMesh(divisions, vmesh_pos, mex.n_vert_all, vmesh_indices, mex.n_tri_all,
+            NamakoNative.GenerateGridMesh(divisions, vmesh_pos, mex.n_vert_all, vmesh_indices, mex.n_tri_all,
             out pos, out pos_grid_size, out tet, out tet_size);
             Marshal.FreeHGlobal(vmesh_pos);
             Marshal.FreeHGlobal(vmesh_indices);

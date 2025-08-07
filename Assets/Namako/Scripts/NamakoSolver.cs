@@ -86,44 +86,6 @@ namespace Namako
 
         private GameObject[] nodeObj;
 
-        [DllImport("namako")]
-        private static extern void SetupFEM(
-            float hip_rad, float young_kPa, float poisson,
-            float density, float damping_alpha, float damping_beta,
-            IntPtr fem_pos, int fem_nnodes, IntPtr fem_indices4, int fem_nfaces,
-            IntPtr vismesh_pos, int vismesh_nnodes,
-            IntPtr vismesh_faces, int vismesh_nfaces,
-            int collision_detection_mode);
-        [DllImport("namako")] private static extern int GetNumNodes();
-        [DllImport("namako")] private static extern int GetNumElems();
-        [DllImport("namako")] private static extern void GetNodePos(IntPtr pos);
-        [DllImport("namako")] private static extern void GetRBPos(IntPtr pos);
-        [DllImport("namako")] private static extern void GetVisMeshPos(IntPtr pos);
-        [DllImport("namako")] private static extern void GetVisMeshStress(IntPtr stress);
-        [DllImport("namako")] private static extern void Terminate();
-        [DllImport("namako")] private static extern void FixBottom(float range_zero_to_one);
-        [DllImport("namako")] private static extern void ScaleStiffness(float scale);
-        [DllImport("namako")] private static extern void SetFriction(float friction);
-        [DllImport("namako")] private static extern void SetVCStiffness(float kc);
-        [DllImport("namako")] private static extern void GetRotationXYZW(IntPtr xyzw);
-        [DllImport("namako")] private static extern void SetHandleOffset(float x, float y, float z);
-        [DllImport("namako")] private static extern float GetScaledYoungsModulus();
-        [DllImport("namako", EntryPoint = "IsContact")] private static extern bool IsContactC();
-        [DllImport("namako")] private static extern void GetDisplayingForce(IntPtr force);
-        [DllImport("namako")] private static extern void GetContactNormal(IntPtr n);
-        [DllImport("namako")] private static extern double GetCalcTime();
-        [DllImport("namako")] private static extern double GetLoopTime();
-        [DllImport("namako")] private static extern void SetHapticEnabled(bool enabled);
-        [DllImport("namako")] private static extern void SetFloorCollisionEnabled(bool enabled);
-        [DllImport("namako")] private static extern void SetRBFEMCollisionEnabled(bool enabled);
-        [DllImport("namako")] private static extern void SetFloorHapticsEnabled(bool enabled);
-        [DllImport("namako")] private static extern void SetGlobalDamping(float damping);
-        [DllImport("namako")] private static extern void SetGravity(float gx, float gy, float gz);
-        [DllImport("namako")] private static extern void SetGravityRb(float gx, float gy, float gz);
-        [DllImport("namako")] private static extern void SetWaitTime(int wait_ms);
-        [DllImport("namako")] private static extern void StartLog();
-        [DllImport("namako")] private static extern void StopLog();
-
         void Start()
         {
             tetContainer = GetComponent<TetContainer>();
@@ -185,7 +147,7 @@ namespace Namako
                 vmesh_vertices = extractor.n_vert_all;
                 vmesh_nfaces = extractor.n_tri_all;
             }
-            SetupFEM(HIPRad, youngsModulusKPa, poisson, density, damping_alpha, damping_beta,
+            NamakoNative.SetupFEM(HIPRad, youngsModulusKPa, poisson, density, damping_alpha, damping_beta,
                 fem_pos_cpp, num_nodes, fem_tet_cpp, num_tets,
                 vmesh_pos_cpp, vmesh_vertices, vmesh_indices_cpp, vmesh_nfaces, (int)cdtype);
 
@@ -193,10 +155,10 @@ namespace Namako
 
             //StartLog();
 
-            SetFloorHapticsEnabled(true);
+            NamakoNative.SetFloorHapticsEnabled(true);
 
-            Debug.Log("Number of nodes: " + GetNumNodes());
-            Debug.Log("Number of elements: " + GetNumElems());
+            Debug.Log("Number of nodes: " + NamakoNative.GetNumNodes());
+            Debug.Log("Number of elements: " + NamakoNative.GetNumElems());
 
             calcTime = new Queue<float>();
         }
@@ -207,7 +169,7 @@ namespace Namako
             time += Time.deltaTime;
 
             // Measure time
-            calcTime.Enqueue((float)GetCalcTime());
+            calcTime.Enqueue((float)NamakoNative.GetCalcTime());
             if (calcTime.Count == 100)
             {
                 float ct = 0.0f;
@@ -223,22 +185,22 @@ namespace Namako
 
             if (time < waitTime)
             {
-                SetHapticEnabled(false);
+                NamakoNative.SetHapticEnabled(false);
             }
             else
             {
-                SetHapticEnabled(hapticEnabled);
+                NamakoNative.SetHapticEnabled(hapticEnabled);
             }
 
             // Set handle offset
             Vector3 handleOffset = inputObj.transform.position;
-            SetHandleOffset(handleOffset.x, handleOffset.y, handleOffset.z);
+            NamakoNative.SetHandleOffset(handleOffset.x, handleOffset.y, handleOffset.z);
 
             // Rigid body
             {
                 // Position
                 IntPtr p_cpp = Marshal.AllocHGlobal(3 * sizeof(float));
-                GetRBPos(p_cpp);
+                NamakoNative.GetRBPos(p_cpp);
                 float[] p = new float[3];
                 Vector3 pVec;
                 Marshal.Copy(p_cpp, p, 0, 3);
@@ -252,45 +214,45 @@ namespace Namako
                 Marshal.FreeHGlobal(p_cpp);
                 // Rotation
                 IntPtr q_cpp = Marshal.AllocHGlobal(4 * sizeof(float));
-                GetRotationXYZW(q_cpp);
+                NamakoNative.GetRotationXYZW(q_cpp);
                 float[] q = new float[4];
                 Marshal.Copy(q_cpp, q, 0, 4);
                 proxyObj.transform.rotation = new Quaternion(q[0], q[1], q[2], q[3]);
                 Marshal.FreeHGlobal(q_cpp);
                 // Misc
-                SetGravityRb(gravityRb.x, gravityRb.y, gravityRb.z);
+                NamakoNative.SetGravityRb(gravityRb.x, gravityRb.y, gravityRb.z);
             }
 
             // Change haptic properties
-            ScaleStiffness(youngsModulusKPa);
-            SetFriction(friction);
-            SetVCStiffness(VCStiffness);
-            SetGlobalDamping(globalDamping);
-            SetFloorHapticsEnabled(floorEnabled);
+            NamakoNative.ScaleStiffness(youngsModulusKPa);
+            NamakoNative.SetFriction(friction);
+            NamakoNative.SetVCStiffness(VCStiffness);
+            NamakoNative.SetGlobalDamping(globalDamping);
+            NamakoNative.SetFloorHapticsEnabled(floorEnabled);
 
             // Apply boundary conditions
-            FixBottom(fixHeight);
-            SetGravity(gravityFEM.x, gravityFEM.y, gravityFEM.z);
+            NamakoNative.FixBottom(fixHeight);
+            NamakoNative.SetGravity(gravityFEM.x, gravityFEM.y, gravityFEM.z);
 
             if(visualObj != null)
             {
                 // Get vertices of visual mesh
-                GetVisMeshPos(vmesh_pos_cpp);
+                NamakoNative.GetVisMeshPos(vmesh_pos_cpp);
                 // Copy pos_cpp to mesh.vertices
                 Marshal.Copy(vmesh_pos_cpp, vmesh_pos, 0, 3 * extractor.n_vert_all);
                 extractor.UpdatePosition(vmesh_pos);
 
                 if (stressVisualization)
                 {
-                    GetVisMeshStress(vmesh_stress_cpp);
+                    NamakoNative.GetVisMeshStress(vmesh_stress_cpp);
                     Marshal.Copy(vmesh_stress_cpp, vmesh_stress, 0, extractor.n_vert_all);
                     extractor.UpdateVertexColor(vmesh_stress, stressLowerLimit, stressUpperLimit);
                 }
             }
 
             // Nodes 
-            int num_nodes = GetNumNodes();
-            GetNodePos(fem_pos_cpp);
+            int num_nodes = NamakoNative.GetNumNodes();
+            NamakoNative.GetNodePos(fem_pos_cpp);
             Marshal.Copy(fem_pos_cpp, fem_pos, 0, 3 * num_nodes);
             for (int i = 0; i < num_nodes; ++i)
             {
@@ -307,14 +269,14 @@ namespace Namako
             Marshal.FreeHGlobal(vmesh_stress_cpp);
             Marshal.FreeHGlobal(fem_pos_cpp);
             Marshal.FreeHGlobal(fem_tet_cpp);
-            Terminate();
+            NamakoNative.Terminate();
         }
 
         public Vector3 GetForce()
         {
             IntPtr ptr = Marshal.AllocHGlobal(3 * sizeof(float));
             var arr = new float[3];
-            GetDisplayingForce(ptr);
+            NamakoNative.GetDisplayingForce(ptr);
             Marshal.Copy(ptr, arr, 0, 3);
             Marshal.FreeHGlobal(ptr);
             return new Vector3(arr[0], arr[1], arr[2]);
@@ -324,14 +286,14 @@ namespace Namako
         {
             IntPtr ptr = Marshal.AllocHGlobal(3 * sizeof(float));
             var arr = new float[3];
-            GetContactNormal(ptr);
+            NamakoNative.GetContactNormal(ptr);
             Marshal.Copy(ptr, arr, 0, 3);
             Marshal.FreeHGlobal(ptr);
             return new Vector3(arr[0], arr[1], arr[2]);
         }
         public bool IsContact()
         {
-            return IsContactC();
+            return NamakoNative.IsContactC();
         }
     }
 
