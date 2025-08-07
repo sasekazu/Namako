@@ -22,6 +22,8 @@ namespace Namako
         public GameObject proxyObj;
         [Tooltip("剛体位置入力用オブジェクト")]
         public GameObject inputObj;
+        [Tooltip("FEM接触対象となる剛体オブジェクト配列")]
+        public GameObject[] contactRigidBodies;
         [Tooltip("剛体半径"), Range(0.001f, 0.1f), Header("Simulation Parameters")]
         public float HIPRad = 0.03f;
         [Tooltip("ヤング率 [kPa]"), Range(0.0f, 10.0f)]
@@ -92,6 +94,17 @@ namespace Namako
 
         private GameObject[] nodeObj;
 
+        // Contact rigid body data storage
+        private struct ContactRigidBodyData
+        {
+            public string name;
+            public GameObject gameObject;
+            public Mesh mesh;
+            public Transform transform;
+            public int[] triangles;
+        }
+        private ContactRigidBodyData[] contactRigidBodyData;
+
         void Start()
         {
             InitializeFEM();
@@ -160,6 +173,42 @@ namespace Namako
             nodeObj = tetContainer.NodeObj;
             calcTime = new Queue<float>();
 
+            // Extract information from contact rigid bodies
+            if (contactRigidBodies != null && contactRigidBodies.Length > 0)
+            {
+                contactRigidBodyData = new ContactRigidBodyData[contactRigidBodies.Length];
+                
+                for (int i = 0; i < contactRigidBodies.Length; i++)
+                {
+                    GameObject rigidBody = contactRigidBodies[i];
+                    if (rigidBody != null)
+                    {
+                        // Extract mesh information
+                        MeshFilter meshFilter = rigidBody.GetComponent<MeshFilter>();
+                        if (meshFilter != null && meshFilter.mesh != null)
+                        {
+                            // Store data in structure
+                            contactRigidBodyData[i] = new ContactRigidBodyData
+                            {
+                                name = rigidBody.name,
+                                gameObject = rigidBody,
+                                mesh = meshFilter.mesh,
+                                transform = rigidBody.transform,
+                                triangles = meshFilter.mesh.triangles
+                            };
+
+                            Debug.Log($"Contact Rigid Body {i}: {contactRigidBodyData[i].name}");
+                            Debug.Log($"  Vertices: {contactRigidBodyData[i].mesh.vertices.Length}, Triangles: {contactRigidBodyData[i].triangles.Length / 3}");
+                        }
+                        else
+                        {
+                            Debug.LogWarning($"Contact rigid body {rigidBody.name} has no MeshFilter or Mesh component");
+                            contactRigidBodyData[i] = default(ContactRigidBodyData);
+                        }
+                    }
+                }
+            }
+
             isInitialized = true;
         }
 
@@ -183,6 +232,9 @@ namespace Namako
             NamakoNative.SetupFEM(HIPRad, youngsModulusKPa, poisson, density, damping_alpha, damping_beta,
                 fem_pos_cpp, num_nodes, fem_tet_cpp, num_tets,
                 vmesh_pos_cpp, vmesh_vertices, vmesh_indices_cpp, vmesh_nfaces, (int)cdtype);
+
+            // Register contact rigid bodies to native library after SetupFEM
+            RegisterAllContactRigidBodies();
 
             //StartLog();
 
@@ -275,6 +327,9 @@ namespace Namako
             NamakoNative.FixBottom(fixHeight);
             NamakoNative.SetGravity(gravityFEM.x, gravityFEM.y, gravityFEM.z);
 
+            // Update contact rigid body positions
+            UpdateContactRigidBodyPositions();
+
             if(visualObj != null)
             {
                 // Get vertices of visual mesh
@@ -345,6 +400,186 @@ namespace Namako
 
         public bool IsInitialized => isInitialized;
         public bool IsFEMStarted => isFEMStarted;
+
+        /// <summary>
+        /// 指定した剛体のワールド座標での頂点配列を取得
+        /// </summary>
+        /// <param name="rigidBodyIndex">剛体のインデックス</param>
+        /// <returns>ワールド座標での頂点配列</returns>
+        private Vector3[] GetRigidBodyWorldVertices(int rigidBodyIndex)
+        {
+            if (contactRigidBodyData == null || rigidBodyIndex < 0 || rigidBodyIndex >= contactRigidBodyData.Length)
+            {
+                return null;
+            }
+
+            ContactRigidBodyData data = contactRigidBodyData[rigidBodyIndex];
+            if (data.mesh == null || data.transform == null)
+            {
+                return null;
+            }
+
+            Vector3[] localVertices = data.mesh.vertices;
+            Vector3[] worldVertices = new Vector3[localVertices.Length];
+
+            for (int i = 0; i < localVertices.Length; i++)
+            {
+                worldVertices[i] = data.transform.TransformPoint(localVertices[i]);
+            }
+
+            return worldVertices;
+        }
+
+        /// <summary>
+        /// 接触剛体をネイティブライブラリに登録
+        /// </summary>
+        /// <param name="rigidBodyIndex">剛体のインデックス</param>
+        private void RegisterContactRigidBodyToNative(int rigidBodyIndex)
+        {
+            if (contactRigidBodyData == null || rigidBodyIndex < 0 || rigidBodyIndex >= contactRigidBodyData.Length)
+            {
+                return;
+            }
+
+            ContactRigidBodyData data = contactRigidBodyData[rigidBodyIndex];
+            if (data.mesh == null || data.transform == null)
+            {
+                return;
+            }
+
+            // Get world vertices
+            Vector3[] worldVertices = GetRigidBodyWorldVertices(rigidBodyIndex);
+            if (worldVertices == null)
+            {
+                return;
+            }
+
+            // Convert vertices to float array
+            float[] vertexData = new float[worldVertices.Length * 3];
+            for (int i = 0; i < worldVertices.Length; i++)
+            {
+                vertexData[i * 3 + 0] = worldVertices[i].x;
+                vertexData[i * 3 + 1] = worldVertices[i].y;
+                vertexData[i * 3 + 2] = worldVertices[i].z;
+            }
+
+            // Allocate memory for vertices
+            IntPtr vertexPtr = Marshal.AllocHGlobal(vertexData.Length * sizeof(float));
+            Marshal.Copy(vertexData, 0, vertexPtr, vertexData.Length);
+
+            // Allocate memory for faces
+            IntPtr facePtr = Marshal.AllocHGlobal(data.triangles.Length * sizeof(int));
+            Marshal.Copy(data.triangles, 0, facePtr, data.triangles.Length);
+
+            try
+            {
+                // Register to native library
+                NamakoNative.AddContactRigidBody(
+                    data.name,
+                    vertexPtr, worldVertices.Length,
+                    facePtr, data.triangles.Length / 3);
+
+                Debug.Log($"Registered contact rigid body '{data.name}' to native library");
+            }
+            finally
+            {
+                // Free allocated memory
+                Marshal.FreeHGlobal(vertexPtr);
+                Marshal.FreeHGlobal(facePtr);
+            }
+        }
+
+        /// <summary>
+        /// 全ての接触剛体をネイティブライブラリに登録
+        /// </summary>
+        private void RegisterAllContactRigidBodies()
+        {
+            if (contactRigidBodyData == null)
+            {
+                return;
+            }
+
+            for (int i = 0; i < contactRigidBodyData.Length; i++)
+            {
+                if (contactRigidBodyData[i].mesh != null && contactRigidBodyData[i].transform != null)
+                {
+                    RegisterContactRigidBodyToNative(i);
+                }
+            }
+        }
+
+        /// <summary>
+        /// 接触剛体の位置をネイティブライブラリに更新
+        /// </summary>
+        private void UpdateContactRigidBodyPositions()
+        {
+            if (contactRigidBodyData == null || !isFEMStarted)
+            {
+                return;
+            }
+
+            for (int i = 0; i < contactRigidBodyData.Length; i++)
+            {
+                ContactRigidBodyData data = contactRigidBodyData[i];
+                if (data.mesh == null || data.transform == null)
+                {
+                    continue;
+                }
+
+                // Get current world vertices
+                Vector3[] worldVertices = GetRigidBodyWorldVertices(i);
+                if (worldVertices == null)
+                {
+                    continue;
+                }
+
+                // Convert vertices to float array
+                float[] vertexData = new float[worldVertices.Length * 3];
+                for (int j = 0; j < worldVertices.Length; j++)
+                {
+                    vertexData[j * 3 + 0] = worldVertices[j].x;
+                    vertexData[j * 3 + 1] = worldVertices[j].y;
+                    vertexData[j * 3 + 2] = worldVertices[j].z;
+                }
+
+                // Allocate memory for vertices
+                IntPtr vertexPtr = Marshal.AllocHGlobal(vertexData.Length * sizeof(float));
+                Marshal.Copy(vertexData, 0, vertexPtr, vertexData.Length);
+
+                try
+                {
+                    // Update position in native library
+                    NamakoNative.UpdateContactRigidBodyPos(
+                        data.name,
+                        vertexPtr, worldVertices.Length);
+                }
+                finally
+                {
+                    // Free allocated memory
+                    Marshal.FreeHGlobal(vertexPtr);
+                }
+            }
+        }
+
+        /// <summary>
+        /// 全ての剛体のワールド座標での頂点配列を取得
+        /// </summary>
+        /// <returns>剛体ごとのワールド座標頂点配列</returns>
+        private Vector3[][] GetAllRigidBodyWorldVertices()
+        {
+            if (contactRigidBodyData == null)
+            {
+                return null;
+            }
+
+            Vector3[][] allWorldVertices = new Vector3[contactRigidBodyData.Length][];
+            for (int i = 0; i < contactRigidBodyData.Length; i++)
+            {
+                allWorldVertices[i] = GetRigidBodyWorldVertices(i);
+            }
+
+            return allWorldVertices;
+        }
     }
 
 }

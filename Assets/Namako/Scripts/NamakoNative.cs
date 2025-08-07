@@ -120,5 +120,17 @@ namespace Namako
             out int n_out_pos,
             [MarshalAs(UnmanagedType.LPArray, SizeParamIndex = 8)] out int[] out_tet,
             out int n_out_tet);
+
+        // 接触剛体管理
+        [DllImport("namako")]
+        public static extern void AddContactRigidBody(
+            [MarshalAs(UnmanagedType.LPStr)] string name,
+            IntPtr pos, int n_pos,
+            IntPtr faces, int n_faces);
+
+        [DllImport("namako")]
+        public static extern void UpdateContactRigidBodyPos(
+            [MarshalAs(UnmanagedType.LPStr)] string name,
+            IntPtr pos, int n_pos);
     }
 }
