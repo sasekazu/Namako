@@ -54,6 +54,9 @@ namespace Namako
         }
         [SerializeField] CollisionDetectionType cdtype = CollisionDetectionType.FEMVTXVsRBSDF;
 
+        [Tooltip("実行開始時に自動的にFEMを開始する"), Header("FEM Control")]
+        public bool autoStartFEM = true;
+
         [Tooltip("力覚提示を有効にする"), Header("Haptics")]
         public bool hapticEnabled = true;
         [Tooltip("床に触れるようにする")]
@@ -82,17 +85,32 @@ namespace Namako
         private TetContainer tetContainer;
 
         private Queue<float> calcTime;
-
+        private bool isInitialized = false;
+        private bool isFEMStarted = false;
+        private int num_nodes;
+        private int num_tets;
 
         private GameObject[] nodeObj;
 
         void Start()
         {
+            InitializeFEM();
+            
+            if (autoStartFEM)
+            {
+                StartFEM();
+            }
+        }
+
+        private void InitializeFEM()
+        {
+            if (isInitialized) return;
+
             tetContainer = GetComponent<TetContainer>();
 
             // Prepare fem_pos_cpp
             Vector3[] posw = tetContainer.GetNodePosW();
-            int num_nodes = posw.Length;
+            num_nodes = posw.Length;
             fem_pos = new float[3 * num_nodes];
             Vector3 s = transform.localScale;
             Vector3 t = transform.position;
@@ -106,7 +124,7 @@ namespace Namako
             Marshal.Copy(fem_pos, 0, fem_pos_cpp, 3 * num_nodes);
 
             // Prepare fem_indices_cpp
-            int num_tets = tetContainer.Tets;
+            num_tets = tetContainer.Tets;
             int[] fem_tet = new int[4 * num_tets];
             System.Array.Copy(tetContainer.Tet, fem_tet, 4 * num_tets);
             fem_tet_cpp = Marshal.AllocHGlobal(4 * num_tets * sizeof(int));
@@ -139,6 +157,21 @@ namespace Namako
                 vmesh_stress_cpp = IntPtr.Zero;
             }
 
+            nodeObj = tetContainer.NodeObj;
+            calcTime = new Queue<float>();
+
+            isInitialized = true;
+        }
+
+        public void StartFEM()
+        {
+            if (!isInitialized)
+            {
+                InitializeFEM();
+            }
+            
+            if (isFEMStarted) return;
+
             // FEM
             int vmesh_vertices = -1;
             int vmesh_nfaces = -1;
@@ -151,8 +184,6 @@ namespace Namako
                 fem_pos_cpp, num_nodes, fem_tet_cpp, num_tets,
                 vmesh_pos_cpp, vmesh_vertices, vmesh_indices_cpp, vmesh_nfaces, (int)cdtype);
 
-            nodeObj = tetContainer.NodeObj;
-
             //StartLog();
 
             NamakoNative.SetFloorHapticsEnabled(true);
@@ -160,11 +191,21 @@ namespace Namako
             Debug.Log("Number of nodes: " + NamakoNative.GetNumNodes());
             Debug.Log("Number of elements: " + NamakoNative.GetNumElems());
 
-            calcTime = new Queue<float>();
+            isFEMStarted = true;
+        }
+
+        public void StopFEM()
+        {
+            if (isFEMStarted)
+            {
+                NamakoNative.Terminate();
+                isFEMStarted = false;
+            }
         }
 
         void Update()
         {
+            if (!isFEMStarted) return;
 
             time += Time.deltaTime;
 
@@ -264,12 +305,18 @@ namespace Namako
 
         private void OnDestroy()
         {
-            Marshal.FreeHGlobal(vmesh_indices_cpp);
-            Marshal.FreeHGlobal(vmesh_pos_cpp);
-            Marshal.FreeHGlobal(vmesh_stress_cpp);
-            Marshal.FreeHGlobal(fem_pos_cpp);
-            Marshal.FreeHGlobal(fem_tet_cpp);
-            NamakoNative.Terminate();
+            if (isInitialized)
+            {
+                Marshal.FreeHGlobal(vmesh_indices_cpp);
+                Marshal.FreeHGlobal(vmesh_pos_cpp);
+                Marshal.FreeHGlobal(vmesh_stress_cpp);
+                Marshal.FreeHGlobal(fem_pos_cpp);
+                Marshal.FreeHGlobal(fem_tet_cpp);
+            }
+            if (isFEMStarted)
+            {
+                NamakoNative.Terminate();
+            }
         }
 
         public Vector3 GetForce()
@@ -295,6 +342,9 @@ namespace Namako
         {
             return NamakoNative.IsContactC();
         }
+
+        public bool IsInitialized => isInitialized;
+        public bool IsFEMStarted => isFEMStarted;
     }
 
 }
