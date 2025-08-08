@@ -132,5 +132,10 @@ namespace Namako
         public static extern void UpdateContactRigidBodyPos(
             [MarshalAs(UnmanagedType.LPStr)] string name,
             IntPtr pos, int n_pos);
+
+        [DllImport("namako")]
+        public static extern int GetContactForces(
+            [MarshalAs(UnmanagedType.LPStr)] string name,
+            IntPtr forces);
     }
 }
