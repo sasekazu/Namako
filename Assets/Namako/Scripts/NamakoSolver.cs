@@ -66,19 +66,10 @@ namespace Namako
         [Tooltip("力覚提示を開始するまでの猶予時間[s]")]
         public float waitTime = 0.5f;
 
-        [Tooltip("応力の可視化を有効にする"), Header("Stress Visualization")]
-        public bool stressVisualization = false;
-        [Tooltip("応力描画の下限値")]
-        public float stressLowerLimit = 0.0f;
-        [Tooltip("応力描画の上限値")]
-        public float stressUpperLimit = 200.0f;
-
         private float time = 0.0f;
         private IntPtr vmesh_pos_cpp;
         private IntPtr vmesh_indices_cpp;
-        private IntPtr vmesh_stress_cpp;
         private float[] vmesh_pos;
-        private float[] vmesh_stress;
         private float[] fem_pos;
         private IntPtr fem_pos_cpp;
         private IntPtr fem_tet_cpp;
@@ -161,13 +152,9 @@ namespace Namako
                     vmesh_pos_cpp, 3 * extractor.n_vert_all);
 
                 vmesh_pos = new float[3 * extractor.n_vert_all];
-
-                vmesh_stress_cpp = Marshal.AllocHGlobal(extractor.n_vert_all * sizeof(float));
-                vmesh_stress = new float[extractor.n_vert_all];
             } else
             {
                 vmesh_pos_cpp = IntPtr.Zero;
-                vmesh_stress_cpp = IntPtr.Zero;
             }
 
             nodeObj = tetContainer.NodeObj;
@@ -337,13 +324,6 @@ namespace Namako
                 // Copy pos_cpp to mesh.vertices
                 Marshal.Copy(vmesh_pos_cpp, vmesh_pos, 0, 3 * extractor.n_vert_all);
                 extractor.UpdatePosition(vmesh_pos);
-
-                if (stressVisualization)
-                {
-                    NamakoNative.GetVisMeshStress(vmesh_stress_cpp);
-                    Marshal.Copy(vmesh_stress_cpp, vmesh_stress, 0, extractor.n_vert_all);
-                    extractor.UpdateVertexColor(vmesh_stress, stressLowerLimit, stressUpperLimit);
-                }
             }
 
             // Nodes 
@@ -364,7 +344,6 @@ namespace Namako
             {
                 Marshal.FreeHGlobal(vmesh_indices_cpp);
                 Marshal.FreeHGlobal(vmesh_pos_cpp);
-                Marshal.FreeHGlobal(vmesh_stress_cpp);
                 Marshal.FreeHGlobal(fem_pos_cpp);
                 Marshal.FreeHGlobal(fem_tet_cpp);
             }
@@ -400,6 +379,15 @@ namespace Namako
 
         public bool IsInitialized => isInitialized;
         public bool IsFEMStarted => isFEMStarted;
+
+        /// <summary>
+        /// MeshExtractorへの参照を取得
+        /// </summary>
+        /// <returns>MeshExtractorインスタンス</returns>
+        public MeshExtractor GetMeshExtractor()
+        {
+            return extractor;
+        }
 
         /// <summary>
         /// 指定した剛体のワールド座標での頂点配列を取得
