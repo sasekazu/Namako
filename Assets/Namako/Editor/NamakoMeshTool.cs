@@ -39,22 +39,39 @@ namespace Namako
         private string savePath = "";
         private int divisions = 5;
         private bool showBoundaryConditionTools = false;
+        private bool showNodes = true;
+        private bool showTetras = true;
+        private Vector2 scrollPosition = Vector2.zero;
+        private bool showMeshInfo = true;
 
         [MenuItem("Window/NamakoMeshTool")]
         public static void ShowWindow()
         {
-            EditorWindow.GetWindow(typeof(NamakoMeshTool));
+            NamakoMeshTool window = EditorWindow.GetWindow(typeof(NamakoMeshTool)) as NamakoMeshTool;
+            window.minSize = new Vector2(350, 600);
+            window.titleContent = new GUIContent("Namako Mesh Tool");
         }
 
         void OnGUI()
         {
             savePath = SceneManager.GetActiveScene().path.Replace(".unity", "-generatedmesh.json");
 
-            EditorGUILayout.LabelField("Mesh Generator");
+            scrollPosition = EditorGUILayout.BeginScrollView(scrollPosition);
+
+            GUILayout.Space(10);
+            EditorGUILayout.LabelField("Namako Mesh Tool", EditorStyles.boldLabel);
+            EditorGUILayout.LabelField("Tetrahedral Mesh Generation & Management", EditorStyles.miniLabel);
+            
+            DrawSeparator();
+
+            // Mesh Generator Section
+            DrawSectionHeader("Mesh Generator", "Generate tetrahedral mesh from visual object");
             EditorGUI.indentLevel++;
             visObj = EditorGUILayout.ObjectField("Visual Mesh Object", visObj, typeof(UnityEngine.Object), true) as GameObject;
             divisions = EditorGUILayout.IntField("Divisions", divisions);
-            if (GUILayout.Button("Generate Mesh"))
+            
+            GUI.backgroundColor = Color.green;
+            if (GUILayout.Button("Generate Mesh", GUILayout.Height(30)))
             {
                 if(visObj)
                 {
@@ -68,18 +85,25 @@ namespace Namako
                     Debug.LogError("Visual Mesh Object not found");
                 }
             }
-
+            GUI.backgroundColor = Color.white;
             EditorGUI.indentLevel--;
-            EditorGUILayout.Space();
+            
+            DrawSeparator();
 
-            EditorGUILayout.LabelField("Mesh Loader");
+            // Mesh Loader Section
+            DrawSectionHeader("Mesh Loader", "Load tetrahedral mesh from file");
             EditorGUI.indentLevel++;
 
             textAsset = EditorGUILayout.ObjectField("Mesh Source (TextAsset)", textAsset, typeof(UnityEngine.Object), true) as TextAsset;
-            invertX = EditorGUILayout.ToggleLeft("Invert X", invertX);
-            scaleTo20cm = EditorGUILayout.ToggleLeft("Scale to 10-cm box", scaleTo20cm);
+            
+            EditorGUILayout.BeginHorizontal();
+            invertX = EditorGUILayout.ToggleLeft("Invert X", invertX, GUILayout.Width(80));
+            scaleTo20cm = EditorGUILayout.ToggleLeft("Scale to 10-cm box", scaleTo20cm, GUILayout.Width(120));
             generateSurfaceMesh = EditorGUILayout.ToggleLeft("Generate Surface Mesh", generateSurfaceMesh);
-            if (GUILayout.Button("Load Mesh"))
+            EditorGUILayout.EndHorizontal();
+            
+            GUI.backgroundColor = Color.cyan;
+            if (GUILayout.Button("Load Mesh", GUILayout.Height(30)))
             {
                 if(textAsset)
                 {
@@ -93,48 +117,113 @@ namespace Namako
                     Debug.LogError("Mesh Source not found");
                 }
             }
-
+            GUI.backgroundColor = Color.white;
             EditorGUI.indentLevel--;
-            EditorGUILayout.Space();
 
-            EditorGUILayout.LabelField("Boundary Condition Tools");
+            DrawSeparator();
+
+            DrawSeparator();
+
+            // Boundary Condition Tools Section
+            DrawSectionHeader("Boundary Conditions", "Set fixed nodes by position");
             EditorGUI.indentLevel++;
-            showBoundaryConditionTools = EditorGUILayout.Foldout(showBoundaryConditionTools, "Boundary Condition Settings");
+            showBoundaryConditionTools = EditorGUILayout.Foldout(showBoundaryConditionTools, "Boundary Condition Settings", true);
             if (showBoundaryConditionTools)
             {
                 EditorGUI.indentLevel++;
-                if (GUILayout.Button("Fix Bottom Nodes (Bottom 10%)"))
+                
+                EditorGUILayout.BeginHorizontal();
+                GUI.backgroundColor = new Color(1.0f, 0.8f, 0.8f);
+                if (GUILayout.Button("Bottom 10%", GUILayout.Height(25)))
                 {
                     SetBoundaryConditionsByPosition("bottom");
                 }
-                if (GUILayout.Button("Fix Top Nodes (Top 10%)"))
+                if (GUILayout.Button("Top 10%", GUILayout.Height(25)))
                 {
                     SetBoundaryConditionsByPosition("top");
                 }
-                if (GUILayout.Button("Fix Left Nodes (Left 10%)"))
+                EditorGUILayout.EndHorizontal();
+                
+                EditorGUILayout.BeginHorizontal();
+                if (GUILayout.Button("Left 10%", GUILayout.Height(25)))
                 {
                     SetBoundaryConditionsByPosition("left");
                 }
-                if (GUILayout.Button("Fix Right Nodes (Right 10%)"))
+                if (GUILayout.Button("Right 10%", GUILayout.Height(25)))
                 {
                     SetBoundaryConditionsByPosition("right");
                 }
-                if (GUILayout.Button("Clear All Boundary Conditions"))
+                EditorGUILayout.EndHorizontal();
+                
+                GUI.backgroundColor = new Color(0.9f, 0.9f, 0.9f);
+                if (GUILayout.Button("Clear All Conditions", GUILayout.Height(25)))
                 {
                     SetBoundaryConditionsByPosition("clear");
                 }
+                GUI.backgroundColor = Color.white;
+                
                 EditorGUI.indentLevel--;
             }
             EditorGUI.indentLevel--;
-            EditorGUILayout.Space();
 
-            EditorGUILayout.LabelField("Etc");
+            DrawSeparator();
+
+            // Mesh Information Panel
+            DrawSectionHeader("Mesh Information", "Current mesh status and statistics");
             EditorGUI.indentLevel++;
-            if (GUILayout.Button("Clean"))
+            showMeshInfo = EditorGUILayout.Foldout(showMeshInfo, "Mesh Statistics", true);
+            if (showMeshInfo)
             {
-                Clean();
+                EditorGUI.indentLevel++;
+                DrawMeshInfoPanel();
+                EditorGUI.indentLevel--;
             }
             EditorGUI.indentLevel--;
+
+            DrawSeparator();
+
+            // Visibility Controls Section
+            DrawSectionHeader("Visibility Controls", "Toggle mesh component visibility");
+            EditorGUI.indentLevel++;
+            
+            EditorGUILayout.BeginHorizontal();
+            GUI.backgroundColor = showNodes ? new Color(0.8f, 1.0f, 0.8f) : new Color(1.0f, 0.8f, 0.8f);
+            if (GUILayout.Button(showNodes ? "Hide Nodes" : "Show Nodes", GUILayout.Height(25)))
+            {
+                ToggleNodeVisibility();
+            }
+            
+            GUI.backgroundColor = showTetras ? new Color(0.8f, 1.0f, 0.8f) : new Color(1.0f, 0.8f, 0.8f);
+            if (GUILayout.Button(showTetras ? "Hide Tetras" : "Show Tetras", GUILayout.Height(25)))
+            {
+                ToggleTetraVisibility();
+            }
+            GUI.backgroundColor = Color.white;
+            EditorGUILayout.EndHorizontal();
+            
+            EditorGUI.indentLevel--;
+
+            DrawSeparator();
+
+            // Utility Section
+            DrawSectionHeader("Utilities", "Clean up and maintenance");
+            EditorGUI.indentLevel++;
+            GUI.backgroundColor = new Color(1.0f, 0.6f, 0.6f);
+            if (GUILayout.Button("Clean All", GUILayout.Height(30)))
+            {
+                if (EditorUtility.DisplayDialog("Confirm Clean", 
+                    "Are you sure you want to clean all generated mesh objects and files? This action cannot be undone.", 
+                    "Yes", "Cancel"))
+                {
+                    Clean();
+                }
+            }
+            GUI.backgroundColor = Color.white;
+            EditorGUI.indentLevel--;
+            
+            GUILayout.Space(10);
+            
+            EditorGUILayout.EndScrollView();
         }
 
         void Clean()
@@ -571,6 +660,200 @@ namespace Namako
             
             // ヒエラルキーの更新を強制
             EditorApplication.RepaintHierarchyWindow();
+        }
+
+        void ToggleNodeVisibility()
+        {
+            showNodes = !showNodes;
+            if (nodeRootObj != null)
+            {
+                nodeRootObj.SetActive(showNodes);
+                SceneView.RepaintAll();
+            }
+        }
+
+        void ToggleTetraVisibility()
+        {
+            showTetras = !showTetras;
+            if (tetObj != null)
+            {
+                MeshRenderer tetRenderer = tetObj.GetComponent<MeshRenderer>();
+                if (tetRenderer != null)
+                {
+                    tetRenderer.enabled = showTetras;
+                    SceneView.RepaintAll();
+                }
+            }
+        }
+
+        // UI Helper Methods
+        void DrawSeparator()
+        {
+            GUILayout.Space(8);
+            Rect rect = EditorGUILayout.GetControlRect(false, 1);
+            EditorGUI.DrawRect(rect, new Color(0.5f, 0.5f, 0.5f, 1));
+            GUILayout.Space(8);
+        }
+
+        void DrawSectionHeader(string title, string description)
+        {
+            GUILayout.Space(5);
+            EditorGUILayout.LabelField(title, EditorStyles.boldLabel);
+            if (!string.IsNullOrEmpty(description))
+            {
+                EditorGUILayout.LabelField(description, EditorStyles.miniLabel);
+            }
+            GUILayout.Space(5);
+        }
+
+        void DrawMeshInfoPanel()
+        {
+            EditorGUILayout.BeginVertical(EditorStyles.helpBox);
+            
+            // Basic mesh statistics
+            EditorGUILayout.LabelField("Basic Statistics", EditorStyles.boldLabel);
+            
+            if (meshObj != null && nodes > 0)
+            {
+                EditorGUILayout.BeginHorizontal();
+                EditorGUILayout.LabelField("Nodes:", GUILayout.Width(80));
+                EditorGUILayout.LabelField(nodes.ToString(), EditorStyles.miniLabel);
+                EditorGUILayout.EndHorizontal();
+                
+                EditorGUILayout.BeginHorizontal();
+                EditorGUILayout.LabelField("Tetrahedra:", GUILayout.Width(80));
+                EditorGUILayout.LabelField(tets.ToString(), EditorStyles.miniLabel);
+                EditorGUILayout.EndHorizontal();
+                
+                EditorGUILayout.BeginHorizontal();
+                EditorGUILayout.LabelField("Node/Tet Ratio:", GUILayout.Width(80));
+                EditorGUILayout.LabelField($"{(float)nodes / tets:F2}", EditorStyles.miniLabel);
+                EditorGUILayout.EndHorizontal();
+                
+                GUILayout.Space(5);
+                
+                // Memory usage estimation
+                EditorGUILayout.LabelField("Memory Usage", EditorStyles.boldLabel);
+                
+                float nodeMemoryKB = (nodes * 3 * sizeof(float)) / 1024f; // Position data
+                float tetMemoryKB = (tets * 4 * sizeof(int)) / 1024f; // Tetrahedra indices
+                float totalMemoryKB = nodeMemoryKB + tetMemoryKB;
+                
+                EditorGUILayout.BeginHorizontal();
+                EditorGUILayout.LabelField("Node Data:", GUILayout.Width(80));
+                EditorGUILayout.LabelField($"{nodeMemoryKB:F1} KB", EditorStyles.miniLabel);
+                EditorGUILayout.EndHorizontal();
+                
+                EditorGUILayout.BeginHorizontal();
+                EditorGUILayout.LabelField("Tet Data:", GUILayout.Width(80));
+                EditorGUILayout.LabelField($"{tetMemoryKB:F1} KB", EditorStyles.miniLabel);
+                EditorGUILayout.EndHorizontal();
+                
+                EditorGUILayout.BeginHorizontal();
+                EditorGUILayout.LabelField("Total:", GUILayout.Width(80));
+                string memoryUnit = totalMemoryKB > 1024 ? $"{totalMemoryKB/1024:F1} MB" : $"{totalMemoryKB:F1} KB";
+                EditorGUILayout.LabelField(memoryUnit, EditorStyles.miniLabel);
+                EditorGUILayout.EndHorizontal();
+                
+                GUILayout.Space(5);
+                
+                // Mesh bounds information
+                if (pos != null && pos.Length > 0)
+                {
+                    EditorGUILayout.LabelField("Mesh Bounds", EditorStyles.boldLabel);
+                    
+                    Vector3 minBounds, maxBounds;
+                    CalculateMeshBounds(out minBounds, out maxBounds);
+                    Vector3 size = maxBounds - minBounds;
+                    
+                    EditorGUILayout.BeginHorizontal();
+                    EditorGUILayout.LabelField("Size:", GUILayout.Width(80));
+                    EditorGUILayout.LabelField($"({size.x:F3}, {size.y:F3}, {size.z:F3})", EditorStyles.miniLabel);
+                    EditorGUILayout.EndHorizontal();
+                    
+                    EditorGUILayout.BeginHorizontal();
+                    EditorGUILayout.LabelField("Center:", GUILayout.Width(80));
+                    Vector3 center = (minBounds + maxBounds) * 0.5f;
+                    EditorGUILayout.LabelField($"({center.x:F3}, {center.y:F3}, {center.z:F3})", EditorStyles.miniLabel);
+                    EditorGUILayout.EndHorizontal();
+                }
+                
+                GUILayout.Space(5);
+                
+                // Object status
+                EditorGUILayout.LabelField("Object Status", EditorStyles.boldLabel);
+                
+                EditorGUILayout.BeginHorizontal();
+                EditorGUILayout.LabelField("Nodes Visible:", GUILayout.Width(80));
+                EditorGUILayout.LabelField(showNodes ? "Yes" : "No", EditorStyles.miniLabel);
+                EditorGUILayout.EndHorizontal();
+                
+                EditorGUILayout.BeginHorizontal();
+                EditorGUILayout.LabelField("Tetras Visible:", GUILayout.Width(80));
+                EditorGUILayout.LabelField(showTetras ? "Yes" : "No", EditorStyles.miniLabel);
+                EditorGUILayout.EndHorizontal();
+                
+                // Boundary conditions count
+                int fixedNodesCount = CountFixedNodes();
+                if (fixedNodesCount >= 0)
+                {
+                    EditorGUILayout.BeginHorizontal();
+                    EditorGUILayout.LabelField("Fixed Nodes:", GUILayout.Width(80));
+                    EditorGUILayout.LabelField($"{fixedNodesCount} ({(float)fixedNodesCount/nodes*100:F1}%)", EditorStyles.miniLabel);
+                    EditorGUILayout.EndHorizontal();
+                }
+            }
+            else
+            {
+                EditorGUILayout.LabelField("No mesh loaded", EditorStyles.centeredGreyMiniLabel);
+                EditorGUILayout.LabelField("Generate or load a mesh to see statistics", EditorStyles.centeredGreyMiniLabel);
+            }
+            
+            EditorGUILayout.EndVertical();
+        }
+
+        void CalculateMeshBounds(out Vector3 minBounds, out Vector3 maxBounds)
+        {
+            minBounds = Vector3.one * float.MaxValue;
+            maxBounds = Vector3.one * float.MinValue;
+            
+            for (int i = 0; i < nodes; i++)
+            {
+                Vector3 nodePos = new Vector3(pos[3 * i], pos[3 * i + 1], pos[3 * i + 2]);
+                
+                if (nodePos.x < minBounds.x) minBounds.x = nodePos.x;
+                if (nodePos.y < minBounds.y) minBounds.y = nodePos.y;
+                if (nodePos.z < minBounds.z) minBounds.z = nodePos.z;
+                
+                if (nodePos.x > maxBounds.x) maxBounds.x = nodePos.x;
+                if (nodePos.y > maxBounds.y) maxBounds.y = nodePos.y;
+                if (nodePos.z > maxBounds.z) maxBounds.z = nodePos.z;
+            }
+        }
+
+        int CountFixedNodes()
+        {
+            if (nodeObj == null || nodeObj.Length == 0) return -1;
+            
+            Type boundaryConditionType = Type.GetType("Namako.NodeBoundaryCondition, Assembly-CSharp");
+            if (boundaryConditionType == null) return -1;
+            
+            int count = 0;
+            for (int i = 0; i < nodeObj.Length; i++)
+            {
+                if (nodeObj[i] == null) continue;
+                
+                var boundaryCondition = nodeObj[i].GetComponent(boundaryConditionType);
+                if (boundaryCondition == null) continue;
+                
+                var isFixedField = boundaryConditionType.GetField("isFixed");
+                if (isFixedField != null)
+                {
+                    bool isFixed = (bool)isFixedField.GetValue(boundaryCondition);
+                    if (isFixed) count++;
+                }
+            }
+            return count;
         }
 
 
