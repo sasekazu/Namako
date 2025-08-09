@@ -148,10 +148,24 @@ namespace Namako
         {
             SaveMeshJSON();
 
-            TetContainer tetContainer = meshObj.AddComponent<TetContainer>();
+            // TetContainerを追加
+            TetContainer tetContainer = meshObj.GetComponent<TetContainer>();
+            if (tetContainer == null)
+            {
+                tetContainer = meshObj.AddComponent<TetContainer>();
+            }
             tetContainer.meshJsonAsset = jsonAsset;
             tetContainer.tetraScale = tetraScale;
-            NamakoSolver solver = meshObj.AddComponent<NamakoSolver>();
+            
+            // NamakoSolverを安全に作成
+            NamakoSolver solver = NamakoSolver.CreateFromTool(meshObj);
+            if (solver == null)
+            {
+                Debug.LogError("NamakoSolverの作成に失敗しました。シーンに既に存在する可能性があります。");
+                return;
+            }
+
+            Debug.Log("NamakoSolverが正常に作成されました。");
 
             // Generate Input and Proxy objects
             inputObj = new GameObject(inputObjName);

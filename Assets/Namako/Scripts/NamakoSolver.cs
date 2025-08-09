@@ -8,13 +8,46 @@ using System;
 using System.Runtime.InteropServices;
 using System.Linq;
 
+/*
+ * 【開発者向け重要事項】
+ * このNamakoSolverコンポーネントは手動で追加することはできません。
+ * 
+ * スクリプトからNamakoSolverを追加する場合は、以下の専用メソッドを使用してください：
+ * 
+ * #if UNITY_EDITOR
+ * NamakoSolver solver = NamakoSolver.CreateFromTool(targetGameObject);
+ * #endif
+ * 
+ * 理由：
+ * - NamakoSolverはSingletonパターンを採用しており、シーンに一つのみ存在可能
+ * - コンポーネントメニューからの手動追加は無効化されています
+ * - 適切な初期化と制約チェックが必要です
+ * 
+ * 通常の使用では、NamakoMeshToolを使用してNamakoSolverを作成してください。
+ */
+
 
 namespace Namako
 {
 
     [RequireComponent(typeof(TetContainer))]
+    [DisallowMultipleComponent]
+    [AddComponentMenu("")]  // コンポーネントメニューから削除
     public class NamakoSolver : MonoBehaviour
     {
+        // Singleton instance
+        private static NamakoSolver instance;
+        public static NamakoSolver Instance
+        {
+            get
+            {
+                if (instance == null)
+                {
+                    instance = FindObjectOfType<NamakoSolver>();
+                }
+                return instance;
+            }
+        }
 
         [Tooltip("FEMに埋め込む描画用オブジェクト"), Header("Input Objects")]
         public GameObject visualObj;
@@ -95,6 +128,46 @@ namespace Namako
             public int[] triangles;
         }
         private ContactRigidBodyData[] contactRigidBodyData;
+
+#if UNITY_EDITOR
+        /// <summary>
+        /// NamakoMeshToolから呼び出される専用の作成メソッド
+        /// </summary>
+        public static NamakoSolver CreateFromTool(GameObject targetGameObject)
+        {
+            if (targetGameObject == null) return null;
+
+            // 既に存在するかチェック
+            NamakoSolver existingSolver = targetGameObject.GetComponent<NamakoSolver>();
+            if (existingSolver != null) return existingSolver;
+
+            // シーン内に他のNamakoSolverが存在するかチェック
+            if (FindObjectOfType<NamakoSolver>() != null)
+            {
+                Debug.LogError("シーンに既にNamakoSolverが存在します。");
+                return null;
+            }
+
+            // NamakoSolverを追加
+            return targetGameObject.AddComponent<NamakoSolver>();
+        }
+#endif
+
+        void Awake()
+        {
+            // Singletonパターンの実装
+            if (instance == null)
+            {
+                instance = this;
+                DontDestroyOnLoad(gameObject);
+            }
+            else if (instance != this)
+            {
+                Debug.LogWarning("NamakoSolverは既にシーンに存在します。重複するインスタンスを削除します。");
+                Destroy(gameObject);
+                return;
+            }
+        }
 
         void Start()
         {
@@ -340,6 +413,12 @@ namespace Namako
 
         private void OnDestroy()
         {
+            // Singletonインスタンスのクリア
+            if (instance == this)
+            {
+                instance = null;
+            }
+
             if (isInitialized)
             {
                 Marshal.FreeHGlobal(vmesh_indices_cpp);
