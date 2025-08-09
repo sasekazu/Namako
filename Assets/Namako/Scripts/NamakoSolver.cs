@@ -117,6 +117,7 @@ namespace Namako
         private int num_tets;
 
         private GameObject[] nodeObj;
+        private Component wireframeRenderer; // Reference to WireframeRenderer component
 
         // Contact rigid body data storage
         private struct ContactRigidBodyData
@@ -177,6 +178,24 @@ namespace Namako
             {
                 StartFEM();
             }
+            
+            // Find WireframeRenderer component in the scene
+            StartCoroutine(FindAndInitializeWireframe());
+        }
+        
+        System.Collections.IEnumerator FindAndInitializeWireframe()
+        {
+            yield return null;
+            
+            GameObject tetMeshObj = GameObject.Find("TetMesh");
+            Transform wireframeTransform = tetMeshObj.transform.Find("tetras_wireframe");
+            System.Type wireframeType = System.Type.GetType("Namako.WireframeRenderer, Assembly-CSharp");
+            wireframeRenderer = wireframeTransform.GetComponent(wireframeType);
+            
+            var initializeMethod = wireframeType.GetMethod("Initialize");
+            int[] tetIndices = tetContainer.Tet;
+            int tetCount = tetContainer.Tets;
+            initializeMethod.Invoke(wireframeRenderer, new object[] { nodeObj, tetIndices, tetCount });
         }
 
         private void InitializeFEM()
@@ -407,6 +426,22 @@ namespace Namako
             {
                 nodeObj[i].GetComponent<MeshRenderer>().enabled = true;
                 nodeObj[i].transform.position = new Vector3(fem_pos[3*i+0], fem_pos[3*i+1], fem_pos[3*i+2]);
+            }
+            
+            // Update wireframe if it exists
+            UpdateWireframeIfNeeded();
+        }
+        
+        private void UpdateWireframeIfNeeded()
+        {
+            if (wireframeRenderer != null)
+            {
+                System.Type wireframeType = wireframeRenderer.GetType();
+                var updateMethod = wireframeType.GetMethod("ForceUpdateWireframe");
+                if (updateMethod != null)
+                {
+                    updateMethod.Invoke(wireframeRenderer, null);
+                }
             }
         }
 
