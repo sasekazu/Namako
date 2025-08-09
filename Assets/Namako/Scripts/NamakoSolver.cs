@@ -254,19 +254,20 @@ namespace Namako
             
             if (isFEMStarted) return;
 
-            // FEM
-            int vmesh_vertices = -1;
-            int vmesh_nfaces = -1;
+            // FEM setup
+            NamakoNative.SetupFEM(HIPRad, youngsModulusKPa, poisson, density, damping_alpha, damping_beta,
+                fem_pos_cpp, num_nodes, fem_tet_cpp, num_tets, (int)collisionDetectionType);
+
+            // Setup visual mesh if available
             if (extractor != null)
             {
-                vmesh_vertices = extractor.n_vert_all;
-                vmesh_nfaces = extractor.n_tri_all;
+                NamakoNative.SetupVisMesh(vmesh_pos_cpp, extractor.n_vert_all, vmesh_indices_cpp, extractor.n_tri_all);
             }
-            NamakoNative.SetupFEM(HIPRad, youngsModulusKPa, poisson, density, damping_alpha, damping_beta,
-                fem_pos_cpp, num_nodes, fem_tet_cpp, num_tets,
-                vmesh_pos_cpp, vmesh_vertices, vmesh_indices_cpp, vmesh_nfaces, (int)collisionDetectionType);
 
-            // Register contact rigid bodies to native library after SetupFEM
+            // Start simulation
+            NamakoNative.StartSimulation();
+
+            // Register contact rigid bodies to native library after setup
             RegisterAllContactRigidBodies();
 
             //StartLog();

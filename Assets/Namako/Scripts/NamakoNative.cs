@@ -11,12 +11,18 @@ namespace Namako
         // セットアップ・終了関連
         [DllImport("namako")]
         public static extern void SetupFEM(
-            float hip_rad, float young_kPa, float poisson,
+            float hip_radius, float young_kPa, float poisson,
             float density, float damping_alpha, float damping_beta,
-            IntPtr fem_pos, int fem_nnodes, IntPtr fem_indices4, int fem_nfaces,
-            IntPtr vismesh_pos, int vismesh_nnodes,
-            IntPtr vismesh_faces, int vismesh_nfaces,
+            IntPtr fem_pos, int fem_nnodes, IntPtr fem_indices4, int fem_ntets,
             int collision_detection_mode);
+        
+        [DllImport("namako")]
+        public static extern void SetupVisMesh(
+            IntPtr vismesh_pos, int vismesh_nnodes, 
+            IntPtr vismesh_faces, int vismesh_nfaces);
+        
+        [DllImport("namako")]
+        public static extern void StartSimulation();
         
         [DllImport("namako")] 
         public static extern void Terminate();
