@@ -138,5 +138,13 @@ namespace Namako
         public static extern int GetContactForces(
             [MarshalAs(UnmanagedType.LPStr)] string name,
             IntPtr forces);
+
+        [DllImport("namako")]
+        public static extern void GrabWithRigidBody(
+            [MarshalAs(UnmanagedType.LPStr)] string name);
+
+        [DllImport("namako")]
+        public static extern void ReleaseWithRigidBody(
+            [MarshalAs(UnmanagedType.LPStr)] string name);
     }
 }
