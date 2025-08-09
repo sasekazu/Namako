@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
 using System.Linq;
+using System.Reflection;
 using System.Runtime.InteropServices;
 using UnityEditor;
 using UnityEngine;
@@ -37,6 +38,7 @@ namespace Namako
         private bool generateSurfaceMesh = false;
         private string savePath = "";
         private int divisions = 5;
+        private bool showBoundaryConditionTools = false;
 
         [MenuItem("Window/NamakoMeshTool")]
         public static void ShowWindow()
@@ -92,6 +94,37 @@ namespace Namako
                 }
             }
 
+            EditorGUI.indentLevel--;
+            EditorGUILayout.Space();
+
+            EditorGUILayout.LabelField("Boundary Condition Tools");
+            EditorGUI.indentLevel++;
+            showBoundaryConditionTools = EditorGUILayout.Foldout(showBoundaryConditionTools, "Boundary Condition Settings");
+            if (showBoundaryConditionTools)
+            {
+                EditorGUI.indentLevel++;
+                if (GUILayout.Button("Fix Bottom Nodes (Bottom 10%)"))
+                {
+                    SetBoundaryConditionsByPosition("bottom");
+                }
+                if (GUILayout.Button("Fix Top Nodes (Top 10%)"))
+                {
+                    SetBoundaryConditionsByPosition("top");
+                }
+                if (GUILayout.Button("Fix Left Nodes (Left 10%)"))
+                {
+                    SetBoundaryConditionsByPosition("left");
+                }
+                if (GUILayout.Button("Fix Right Nodes (Right 10%)"))
+                {
+                    SetBoundaryConditionsByPosition("right");
+                }
+                if (GUILayout.Button("Clear All Boundary Conditions"))
+                {
+                    SetBoundaryConditionsByPosition("clear");
+                }
+                EditorGUI.indentLevel--;
+            }
             EditorGUI.indentLevel--;
             EditorGUILayout.Space();
 
@@ -347,12 +380,29 @@ namespace Namako
             goRend.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
             goRend.receiveShadows = false;
             go.transform.localScale = new Vector3(r, r, r);
+            
             for (int j = 0; j < nodes; ++j)
             {
                 nodeObj[j] = GameObject.Instantiate(go) as GameObject;
                 nodeObj[j].name = "node " + j;
                 nodeObj[j].transform.parent = nodeRootObj.transform;
                 nodeObj[j].transform.localPosition = new Vector3(pos[3 * j + 0], pos[3 * j + 1], pos[3 * j + 2]);
+                
+                // 境界条件コンポーネントを追加
+                Type boundaryConditionType = Type.GetType("Namako.NodeBoundaryCondition, Assembly-CSharp");
+                if (boundaryConditionType != null)
+                {
+                    var boundaryCondition = nodeObj[j].AddComponent(boundaryConditionType);
+                    if (boundaryCondition != null)
+                    {
+                        // リフレクションを使用してプロパティを設定
+                        var isFixedField = boundaryConditionType.GetField("isFixed");
+                        var displacementField = boundaryConditionType.GetField("displacement");
+                        
+                        if (isFixedField != null) isFixedField.SetValue(boundaryCondition, false);
+                        if (displacementField != null) displacementField.SetValue(boundaryCondition, Vector3.zero);
+                    }
+                }
             }
             DestroyImmediate(go);
         }
@@ -412,6 +462,115 @@ namespace Namako
                 vertices[12 * j + 10] = w2;
                 vertices[12 * j + 11] = w3;
             }
+        }
+
+        void SetBoundaryConditionsByPosition(string mode)
+        {
+            if (nodeObj == null || nodeObj.Length == 0)
+            {
+                Debug.LogWarning("ノードが生成されていません。先にメッシュを読み込んでください。");
+                return;
+            }
+
+            Type boundaryConditionType = Type.GetType("Namako.NodeBoundaryCondition, Assembly-CSharp");
+            if (boundaryConditionType == null)
+            {
+                Debug.LogError("NodeBoundaryConditionクラスが見つかりません。");
+                return;
+            }
+
+            // ノードの座標範囲を計算
+            float minX = float.MaxValue, maxX = float.MinValue;
+            float minY = float.MaxValue, maxY = float.MinValue;
+            float minZ = float.MaxValue, maxZ = float.MinValue;
+
+            for (int i = 0; i < nodeObj.Length; i++)
+            {
+                if (nodeObj[i] == null) continue;
+                Vector3 pos = nodeObj[i].transform.localPosition;
+                
+                if (pos.x < minX) minX = pos.x;
+                if (pos.x > maxX) maxX = pos.x;
+                if (pos.y < minY) minY = pos.y;
+                if (pos.y > maxY) maxY = pos.y;
+                if (pos.z < minZ) minZ = pos.z;
+                if (pos.z > maxZ) maxZ = pos.z;
+            }
+
+            // 10%の範囲を計算
+            float rangeX = maxX - minX;
+            float rangeY = maxY - minY;
+            float rangeZ = maxZ - minZ;
+            float threshold = 0.1f; // 10%
+
+            Debug.Log($"座標範囲: X({minX:F3}~{maxX:F3}), Y({minY:F3}~{maxY:F3}), Z({minZ:F3}~{maxZ:F3})");
+
+            int count = 0;
+            for (int i = 0; i < nodeObj.Length; i++)
+            {
+                if (nodeObj[i] == null) continue;
+
+                var boundaryCondition = nodeObj[i].GetComponent(boundaryConditionType);
+                if (boundaryCondition == null) continue;
+
+                Vector3 position = nodeObj[i].transform.localPosition;
+                bool shouldFix = false;
+
+                switch (mode)
+                {
+                    case "bottom":
+                        // 下から10%の範囲
+                        shouldFix = position.y <= (minY + rangeY * threshold);
+                        break;
+                    case "top":
+                        // 上から10%の範囲
+                        shouldFix = position.y >= (maxY - rangeY * threshold);
+                        break;
+                    case "left":
+                        // 左から10%の範囲
+                        shouldFix = position.x <= (minX + rangeX * threshold);
+                        break;
+                    case "right":
+                        // 右から10%の範囲
+                        shouldFix = position.x >= (maxX - rangeX * threshold);
+                        break;
+                    case "clear":
+                        shouldFix = false;
+                        break;
+                }
+
+                // リフレクションを使用してプロパティを設定
+                var isFixedField = boundaryConditionType.GetField("isFixed");
+                var displacementField = boundaryConditionType.GetField("displacement");
+
+                if (isFixedField != null) 
+                {
+                    isFixedField.SetValue(boundaryCondition, shouldFix);
+                    if (shouldFix) count++;
+                }
+                if (displacementField != null) 
+                {
+                    displacementField.SetValue(boundaryCondition, Vector3.zero);
+                }
+
+                // エディター上での可視化を即座に更新
+                var updateVisualizationMethod = boundaryConditionType.GetMethod("UpdateVisualization");
+                if (updateVisualizationMethod != null)
+                {
+                    updateVisualizationMethod.Invoke(boundaryCondition, null);
+                }
+
+                // インスペクターの更新を強制
+                EditorUtility.SetDirty(nodeObj[i]);
+            }
+
+            Debug.Log($"境界条件を設定しました。モード: {mode}, 固定ノード数: {count}");
+            
+            // シーンビューの再描画を強制
+            SceneView.RepaintAll();
+            
+            // ヒエラルキーの更新を強制
+            EditorApplication.RepaintHierarchyWindow();
         }
 
 
