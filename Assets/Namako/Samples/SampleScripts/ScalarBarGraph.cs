@@ -30,7 +30,7 @@ namespace Namako.Samples
         
         [Header("Scale Lines")]
         [Tooltip("基準線を引く値")]
-        [SerializeField] private float[] scaleValues = new float[] { 25f, 50f, 75f };
+        [SerializeField] private float[] scaleValues;
         
         [Tooltip("基準線の色")]
         [SerializeField] private Color scaleLineColor = Color.gray;
