@@ -41,8 +41,10 @@ namespace Namako
         private bool showBoundaryConditionTools = false;
         private bool showNodes = true;
         private bool showTetras = true;
+        private bool showWireframe = true;
         private Vector2 scrollPosition = Vector2.zero;
         private bool showMeshInfo = true;
+        private Component wireframeRenderer;
 
         [MenuItem("Window/NamakoMeshTool")]
         public static void ShowWindow()
@@ -201,6 +203,15 @@ namespace Namako
             GUI.backgroundColor = Color.white;
             EditorGUILayout.EndHorizontal();
             
+            EditorGUILayout.BeginHorizontal();
+            GUI.backgroundColor = showWireframe ? new Color(0.8f, 1.0f, 0.8f) : new Color(1.0f, 0.8f, 0.8f);
+            if (GUILayout.Button(showWireframe ? "Hide Wireframe" : "Show Wireframe", GUILayout.Height(25)))
+            {
+                ToggleWireframeVisibility();
+            }
+            GUI.backgroundColor = Color.white;
+            EditorGUILayout.EndHorizontal();
+            
             EditorGUI.indentLevel--;
 
             DrawSeparator();
@@ -232,8 +243,13 @@ namespace Namako
             DestroyImmediate(GameObject.Find(inputObjName));
             DestroyImmediate(GameObject.Find(proxyObjName));
             DestroyImmediate(GameObject.Find(surfaceMeshObjName));
+            DestroyImmediate(GameObject.Find("tetras_wireframe"));
             AssetDatabase.DeleteAsset(savePath);
             AssetDatabase.Refresh();
+            
+            // Reset visibility flags and wireframe reference
+            showWireframe = true;
+            wireframeRenderer = null;
         }
 
         void SaveMeshJSON()
@@ -503,9 +519,14 @@ namespace Namako
             tetObj = GameObject.CreatePrimitive(PrimitiveType.Cube);
             DestroyImmediate(tetObj.GetComponent<BoxCollider>());
             tetObj.name = "tetras";
-            var mat = new Material(tetObj.GetComponent<Renderer>().sharedMaterial);
-            mat.color = new Color32(230, 151, 62, 10);
-            mat.shader = Shader.Find("Diffuse");
+            
+            // Create material for solid rendering
+            var mat = new Material(Shader.Find("Standard"));
+            mat.color = new Color32(230, 151, 62, 255);
+            mat.SetFloat("_Mode", 0); // Opaque mode
+            mat.SetFloat("_Metallic", 0.0f);
+            mat.SetFloat("_Glossiness", 0.3f);
+            
             tetObj.GetComponent<Renderer>().sharedMaterial = mat;
             tetObj.transform.parent = meshObj.transform;
             Mesh mesh = new Mesh();
@@ -522,6 +543,12 @@ namespace Namako
             mesh.RecalculateBounds();
             mesh.RecalculateNormals();
             mesh.RecalculateTangents();
+            
+            // Create wireframe by default
+            if (showWireframe)
+            {
+                CreateWireframeRenderer();
+            }
         }
 
         void CalcTetraVertices(Vector3[] vertices)
@@ -538,17 +565,26 @@ namespace Namako
                 Vector3 w1 = c + ts * (v1 - c);
                 Vector3 w2 = c + ts * (v2 - c);
                 Vector3 w3 = c + ts * (v3 - c);
-                vertices[12 * j] = w0;
+                
+                // Tetrahedron faces with correct winding order (counter-clockwise when viewed from outside)
+                // Face 1: v0, v2, v1 (triangle facing outward from v3) - reversed winding
+                vertices[12 * j + 0] = w0;
                 vertices[12 * j + 1] = w2;
                 vertices[12 * j + 2] = w1;
+                
+                // Face 2: v0, v1, v3 (triangle facing outward from v2) - reversed winding
                 vertices[12 * j + 3] = w0;
-                vertices[12 * j + 4] = w3;
-                vertices[12 * j + 5] = w2;
-                vertices[12 * j + 6] = w0;
-                vertices[12 * j + 7] = w1;
+                vertices[12 * j + 4] = w1;
+                vertices[12 * j + 5] = w3;
+                
+                // Face 3: v1, v2, v3 (triangle facing outward from v0) - reversed winding
+                vertices[12 * j + 6] = w1;
+                vertices[12 * j + 7] = w2;
                 vertices[12 * j + 8] = w3;
-                vertices[12 * j + 9] = w1;
-                vertices[12 * j + 10] = w2;
+                
+                // Face 4: v2, v0, v3 (triangle facing outward from v1) - reversed winding
+                vertices[12 * j + 9] = w2;
+                vertices[12 * j + 10] = w0;
                 vertices[12 * j + 11] = w3;
             }
         }
@@ -686,6 +722,73 @@ namespace Namako
             }
         }
 
+        void ToggleWireframeVisibility()
+        {
+            showWireframe = !showWireframe;
+            
+            if (showWireframe)
+            {
+                CreateWireframeRenderer();
+            }
+            else
+            {
+                DestroyWireframeRenderer();
+            }
+            SceneView.RepaintAll();
+        }
+
+        void CreateWireframeRenderer()
+        {
+            if (tetObj == null || nodeObj == null) return;
+            
+            // Create wireframe GameObject with WireframeRenderer component
+            GameObject wireframeObj = new GameObject("tetras_wireframe");
+            wireframeObj.transform.parent = tetObj.transform.parent;
+            wireframeObj.transform.localPosition = tetObj.transform.localPosition;
+            
+            // Use reflection to add WireframeRenderer component
+            System.Type wireframeType = System.Type.GetType("Namako.WireframeRenderer, Assembly-CSharp");
+            if (wireframeType != null)
+            {
+                wireframeRenderer = wireframeObj.AddComponent(wireframeType) as Component;
+                
+                // Call Initialize method using reflection
+                var initializeMethod = wireframeType.GetMethod("Initialize");
+                if (initializeMethod != null)
+                {
+                    initializeMethod.Invoke(wireframeRenderer, new object[] { nodeObj, tet, tets });
+                }
+            }
+            
+            // Hide original tetra mesh
+            tetObj.GetComponent<MeshRenderer>().enabled = false;
+        }
+
+        void DestroyWireframeRenderer()
+        {
+            if (tetObj != null)
+            {
+                // Show original tetra mesh
+                tetObj.GetComponent<MeshRenderer>().enabled = true;
+            }
+            
+            // Remove wireframe object
+            if (wireframeRenderer != null)
+            {
+                DestroyImmediate(wireframeRenderer.gameObject);
+                wireframeRenderer = null;
+            }
+            else
+            {
+                // Fallback: find and destroy by name
+                Transform wireframeTransform = tetObj?.transform.parent?.Find("tetras_wireframe");
+                if (wireframeTransform != null)
+                {
+                    DestroyImmediate(wireframeTransform.gameObject);
+                }
+            }
+        }
+
         // UI Helper Methods
         void DrawSeparator()
         {
@@ -791,6 +894,11 @@ namespace Namako
                 EditorGUILayout.BeginHorizontal();
                 EditorGUILayout.LabelField("Tetras Visible:", GUILayout.Width(80));
                 EditorGUILayout.LabelField(showTetras ? "Yes" : "No", EditorStyles.miniLabel);
+                EditorGUILayout.EndHorizontal();
+                
+                EditorGUILayout.BeginHorizontal();
+                EditorGUILayout.LabelField("Wireframe:", GUILayout.Width(80));
+                EditorGUILayout.LabelField(showWireframe ? "Yes" : "No", EditorStyles.miniLabel);
                 EditorGUILayout.EndHorizontal();
                 
                 // Boundary conditions count
