@@ -1,6 +1,9 @@
 using UnityEngine;
 using System;
 using System.Runtime.InteropServices;
+#if UNITY_EDITOR
+using UnityEditor;
+#endif
 
 namespace Namako
 {
@@ -27,6 +30,75 @@ namespace Namako
         {
             meshFilter = GetComponent<MeshFilter>();
         }
+        
+#if UNITY_EDITOR
+        void Reset()
+        {
+            // Component added in editor
+            CheckAndSetCollisionDetectionType();
+        }
+        
+        void OnValidate()
+        {
+            // Component validated in editor
+            if (!Application.isPlaying)
+            {
+                CheckAndSetCollisionDetectionType();
+            }
+        }
+        
+        private void CheckAndSetCollisionDetectionType()
+        {
+            NamakoSolver solver = FindObjectOfType<NamakoSolver>();
+            if (solver == null)
+            {
+                Debug.LogWarning("[NamakoRigidBody] NamakoSolver not found in scene");
+                return;
+            }
+
+            // Use SerializedObject to access the field
+            SerializedObject serializedSolver = new SerializedObject(solver);
+            SerializedProperty collisionDetectionProperty = serializedSolver.FindProperty("collisionDetectionType");
+            
+            if (collisionDetectionProperty != null)
+            {
+                var currentType = (NamakoSolver.CollisionDetectionType)collisionDetectionProperty.enumValueIndex;
+                
+                Debug.Log($"[NamakoRigidBody] Current collision detection type: {currentType}");
+                
+                if (currentType != NamakoSolver.CollisionDetectionType.FEMSDFVsRBVTX)
+                {
+                    if (EditorUtility.DisplayDialog(
+                        "Collision Detection Type Setting",
+                        $"NamakoRigidBody requires CollisionDetectionType to be set to 'FEMSDF vs RBVTX'.\n\n" +
+                        $"Current setting: {currentType}\n" +
+                        $"Required setting: FEMSDF vs RBVTX\n\n" +
+                        "Would you like to change it automatically?",
+                        "Yes, Change It",
+                        "No, Keep Current"))
+                    {
+                        // Change the collision detection type
+                        collisionDetectionProperty.enumValueIndex = (int)NamakoSolver.CollisionDetectionType.FEMSDFVsRBVTX;
+                        serializedSolver.ApplyModifiedProperties();
+                        Debug.Log($"[NamakoRigidBody] Changed CollisionDetectionType to FEMSDFVsRBVTX");
+                    }
+                    else
+                    {
+                        Debug.LogWarning($"[NamakoRigidBody] CollisionDetectionType is set to {currentType}. " +
+                                       "NamakoRigidBody may not work correctly. Please set it to FEMSDFVsRBVTX manually.");
+                    }
+                }
+                else
+                {
+                    Debug.Log("[NamakoRigidBody] CollisionDetectionType is already set to FEMSDFVsRBVTX");
+                }
+            }
+            else
+            {
+                Debug.LogError("[NamakoRigidBody] Could not find collisionDetectionType property in NamakoSolver");
+            }
+        }
+#endif
         
         /// <summary>
         /// Grab contact nodes

@@ -85,7 +85,7 @@ namespace Namako
             FEMVTXVsRBSDF = 0,
             FEMSDFVsRBVTX = 1
         }
-        [SerializeField] CollisionDetectionType cdtype = CollisionDetectionType.FEMVTXVsRBSDF;
+        [SerializeField] CollisionDetectionType collisionDetectionType = CollisionDetectionType.FEMVTXVsRBSDF;
 
         [Tooltip("実行開始時に自動的にFEMを開始する"), Header("FEM Control")]
         public bool autoStartFEM = true;
@@ -264,7 +264,7 @@ namespace Namako
             }
             NamakoNative.SetupFEM(HIPRad, youngsModulusKPa, poisson, density, damping_alpha, damping_beta,
                 fem_pos_cpp, num_nodes, fem_tet_cpp, num_tets,
-                vmesh_pos_cpp, vmesh_vertices, vmesh_indices_cpp, vmesh_nfaces, (int)cdtype);
+                vmesh_pos_cpp, vmesh_vertices, vmesh_indices_cpp, vmesh_nfaces, (int)collisionDetectionType);
 
             // Register contact rigid bodies to native library after SetupFEM
             RegisterAllContactRigidBodies();
