@@ -118,18 +118,7 @@ namespace Namako
         private WireframeRenderer wireframeRenderer;
 
         // Contact rigid body management
-        private GameObject[] contactRigidBodies; // 実際に使用される接触剛体配列（自動検出＋手動設定の結合）
-
-        // Contact rigid body data storage
-        private struct ContactRigidBodyData
-        {
-            public string name;
-            public GameObject gameObject;
-            public Mesh mesh;
-            public Transform transform;
-            public int[] triangles;
-        }
-        private ContactRigidBodyData[] contactRigidBodyData;
+        private NamakoRigidBody[] namakoRigidBodies; // NamakoRigidBodyコンポーネントを持つ剛体配列
 
 #if UNITY_EDITOR
         /// <summary>
@@ -250,44 +239,8 @@ namespace Namako
                 wireframeRenderer.Initialize(nodeObj, tetIndices, tetCount);
             }
 
-            // Collect contact rigid bodies using tag-based detection and manual settings
-            CollectContactRigidBodies();
-
-            // Extract information from contact rigid bodies
-            if (contactRigidBodies != null && contactRigidBodies.Length > 0)
-            {
-                contactRigidBodyData = new ContactRigidBodyData[contactRigidBodies.Length];
-                
-                for (int i = 0; i < contactRigidBodies.Length; i++)
-                {
-                    GameObject rigidBody = contactRigidBodies[i];
-                    if (rigidBody != null)
-                    {
-                        // Extract mesh information
-                        MeshFilter meshFilter = rigidBody.GetComponent<MeshFilter>();
-                        if (meshFilter != null && meshFilter.mesh != null)
-                        {
-                            // Store data in structure
-                            contactRigidBodyData[i] = new ContactRigidBodyData
-                            {
-                                name = rigidBody.name,
-                                gameObject = rigidBody,
-                                mesh = meshFilter.mesh,
-                                transform = rigidBody.transform,
-                                triangles = meshFilter.mesh.triangles
-                            };
-
-                            Debug.Log($"Contact Rigid Body {i}: {contactRigidBodyData[i].name}");
-                            Debug.Log($"  Vertices: {contactRigidBodyData[i].mesh.vertices.Length}, Triangles: {contactRigidBodyData[i].triangles.Length / 3}");
-                        }
-                        else
-                        {
-                            Debug.LogWarning($"Contact rigid body {rigidBody.name} has no MeshFilter or Mesh component");
-                            contactRigidBodyData[i] = default(ContactRigidBodyData);
-                        }
-                    }
-                }
-            }
+            // Collect contact rigid bodies using NamakoRigidBody components
+            CollectNamakoRigidBodies();
 
             isInitialized = true;
         }
@@ -505,108 +458,18 @@ namespace Namako
         }
 
         /// <summary>
-        /// 指定した剛体のワールド座標での頂点配列を取得
-        /// </summary>
-        /// <param name="rigidBodyIndex">剛体のインデックス</param>
-        /// <returns>ワールド座標での頂点配列</returns>
-        private Vector3[] GetRigidBodyWorldVertices(int rigidBodyIndex)
-        {
-            if (contactRigidBodyData == null || rigidBodyIndex < 0 || rigidBodyIndex >= contactRigidBodyData.Length)
-            {
-                return null;
-            }
-
-            ContactRigidBodyData data = contactRigidBodyData[rigidBodyIndex];
-            if (data.mesh == null || data.transform == null)
-            {
-                return null;
-            }
-
-            Vector3[] localVertices = data.mesh.vertices;
-            Vector3[] worldVertices = new Vector3[localVertices.Length];
-
-            for (int i = 0; i < localVertices.Length; i++)
-            {
-                worldVertices[i] = data.transform.TransformPoint(localVertices[i]);
-            }
-
-            return worldVertices;
-        }
-
-        /// <summary>
-        /// 接触剛体をネイティブライブラリに登録
-        /// </summary>
-        /// <param name="rigidBodyIndex">剛体のインデックス</param>
-        private void RegisterContactRigidBodyToNative(int rigidBodyIndex)
-        {
-            if (contactRigidBodyData == null || rigidBodyIndex < 0 || rigidBodyIndex >= contactRigidBodyData.Length)
-            {
-                return;
-            }
-
-            ContactRigidBodyData data = contactRigidBodyData[rigidBodyIndex];
-            if (data.mesh == null || data.transform == null)
-            {
-                return;
-            }
-
-            // Get world vertices
-            Vector3[] worldVertices = GetRigidBodyWorldVertices(rigidBodyIndex);
-            if (worldVertices == null)
-            {
-                return;
-            }
-
-            // Convert vertices to float array
-            float[] vertexData = new float[worldVertices.Length * 3];
-            for (int i = 0; i < worldVertices.Length; i++)
-            {
-                vertexData[i * 3 + 0] = worldVertices[i].x;
-                vertexData[i * 3 + 1] = worldVertices[i].y;
-                vertexData[i * 3 + 2] = worldVertices[i].z;
-            }
-
-            // Allocate memory for vertices
-            IntPtr vertexPtr = Marshal.AllocHGlobal(vertexData.Length * sizeof(float));
-            Marshal.Copy(vertexData, 0, vertexPtr, vertexData.Length);
-
-            // Allocate memory for faces
-            IntPtr facePtr = Marshal.AllocHGlobal(data.triangles.Length * sizeof(int));
-            Marshal.Copy(data.triangles, 0, facePtr, data.triangles.Length);
-
-            try
-            {
-                // Register to native library
-                NamakoNative.AddContactRigidBody(
-                    data.name,
-                    vertexPtr, worldVertices.Length,
-                    facePtr, data.triangles.Length / 3);
-
-                Debug.Log($"Registered contact rigid body '{data.name}' to native library");
-            }
-            finally
-            {
-                // Free allocated memory
-                Marshal.FreeHGlobal(vertexPtr);
-                Marshal.FreeHGlobal(facePtr);
-            }
-        }
-
-        /// <summary>
         /// 全ての接触剛体をネイティブライブラリに登録
         /// </summary>
         private void RegisterAllContactRigidBodies()
         {
-            if (contactRigidBodyData == null)
-            {
+            if (namakoRigidBodies == null)
                 return;
-            }
 
-            for (int i = 0; i < contactRigidBodyData.Length; i++)
+            for (int i = 0; i < namakoRigidBodies.Length; i++)
             {
-                if (contactRigidBodyData[i].mesh != null && contactRigidBodyData[i].transform != null)
+                if (namakoRigidBodies[i] != null)
                 {
-                    RegisterContactRigidBodyToNative(i);
+                    namakoRigidBodies[i].RegisterToNative();
                 }
             }
         }
@@ -616,50 +479,14 @@ namespace Namako
         /// </summary>
         private void UpdateContactRigidBodyPositions()
         {
-            if (contactRigidBodyData == null || !isFEMStarted)
-            {
+            if (namakoRigidBodies == null || !isFEMStarted)
                 return;
-            }
 
-            for (int i = 0; i < contactRigidBodyData.Length; i++)
+            for (int i = 0; i < namakoRigidBodies.Length; i++)
             {
-                ContactRigidBodyData data = contactRigidBodyData[i];
-                if (data.mesh == null || data.transform == null)
+                if (namakoRigidBodies[i] != null)
                 {
-                    continue;
-                }
-
-                // Get current world vertices
-                Vector3[] worldVertices = GetRigidBodyWorldVertices(i);
-                if (worldVertices == null)
-                {
-                    continue;
-                }
-
-                // Convert vertices to float array
-                float[] vertexData = new float[worldVertices.Length * 3];
-                for (int j = 0; j < worldVertices.Length; j++)
-                {
-                    vertexData[j * 3 + 0] = worldVertices[j].x;
-                    vertexData[j * 3 + 1] = worldVertices[j].y;
-                    vertexData[j * 3 + 2] = worldVertices[j].z;
-                }
-
-                // Allocate memory for vertices
-                IntPtr vertexPtr = Marshal.AllocHGlobal(vertexData.Length * sizeof(float));
-                Marshal.Copy(vertexData, 0, vertexPtr, vertexData.Length);
-
-                try
-                {
-                    // Update position in native library
-                    NamakoNative.UpdateContactRigidBodyPos(
-                        data.name,
-                        vertexPtr, worldVertices.Length);
-                }
-                finally
-                {
-                    // Free allocated memory
-                    Marshal.FreeHGlobal(vertexPtr);
+                    namakoRigidBodies[i].UpdatePositionInNative();
                 }
             }
         }
@@ -728,37 +555,17 @@ namespace Namako
         }
 
         /// <summary>
-        /// NamakoRigidBodyタグが設定されたContact Rigid Bodiesを自動検出
+        /// シーン内のNamakoRigidBodyコンポーネントを自動検出
         /// </summary>
-        private void CollectContactRigidBodies()
+        private void CollectNamakoRigidBodies()
         {
-            const string NAMAKO_RIGID_BODY_TAG = "NamakoRigidBody";
-            var allContactRigidBodies = new List<GameObject>();
-
-            try
+            namakoRigidBodies = FindObjectsOfType<NamakoRigidBody>();
+            Debug.Log($"Total NamakoRigidBody components found: {namakoRigidBodies.Length}");
+            
+            for (int i = 0; i < namakoRigidBodies.Length; i++)
             {
-                GameObject[] taggedObjects = GameObject.FindGameObjectsWithTag(NAMAKO_RIGID_BODY_TAG);
-                foreach (var obj in taggedObjects)
-                {
-                    // MeshFilterコンポーネントがあるかチェック
-                    if (obj.GetComponent<MeshFilter>() != null)
-                    {
-                        allContactRigidBodies.Add(obj);
-                        Debug.Log($"Found contact rigid body: '{obj.name}'");
-                    }
-                    else
-                    {
-                        Debug.LogWarning($"'{obj.name}' has tag '{NAMAKO_RIGID_BODY_TAG}' but no MeshFilter component");
-                    }
-                }
+                Debug.Log($"Found NamakoRigidBody: '{namakoRigidBodies[i].RigidBodyName}'");
             }
-            catch (UnityException ex)
-            {
-                Debug.LogWarning($"Tag '{NAMAKO_RIGID_BODY_TAG}' が存在しません。Tagを作成してからオブジェクトに設定してください。\nError: {ex.Message}");
-            }
-
-            contactRigidBodies = allContactRigidBodies.ToArray();
-            Debug.Log($"Total contact rigid bodies collected: {contactRigidBodies.Length}");
         }
 
         /// <summary>
@@ -792,26 +599,6 @@ namespace Namako
             }
 
             return -1;
-        }
-
-        /// <summary>
-        /// 全ての剛体のワールド座標での頂点配列を取得
-        /// </summary>
-        /// <returns>剛体ごとのワールド座標頂点配列</returns>
-        private Vector3[][] GetAllRigidBodyWorldVertices()
-        {
-            if (contactRigidBodyData == null)
-            {
-                return null;
-            }
-
-            Vector3[][] allWorldVertices = new Vector3[contactRigidBodyData.Length][];
-            for (int i = 0; i < contactRigidBodyData.Length; i++)
-            {
-                allWorldVertices[i] = GetRigidBodyWorldVertices(i);
-            }
-
-            return allWorldVertices;
         }
     }
 
