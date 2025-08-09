@@ -55,8 +55,6 @@ namespace Namako
         public GameObject proxyObj;
         [Tooltip("剛体位置入力用オブジェクト")]
         public GameObject inputObj;
-        [Tooltip("FEM接触対象となる剛体オブジェクト配列")]
-        public GameObject[] contactRigidBodies;
         [Tooltip("剛体半径"), Range(0.001f, 0.1f), Header("Simulation Parameters")]
         public float HIPRad = 0.03f;
         [Tooltip("ヤング率 [kPa]"), Range(0.0f, 10.0f)]
@@ -118,6 +116,9 @@ namespace Namako
 
         private GameObject[] nodeObj;
         private WireframeRenderer wireframeRenderer;
+
+        // Contact rigid body management
+        private GameObject[] contactRigidBodies; // 実際に使用される接触剛体配列（自動検出＋手動設定の結合）
 
         // Contact rigid body data storage
         private struct ContactRigidBodyData
@@ -248,6 +249,9 @@ namespace Namako
                 int tetCount = tetContainer.Tets;
                 wireframeRenderer.Initialize(nodeObj, tetIndices, tetCount);
             }
+
+            // Collect contact rigid bodies using tag-based detection and manual settings
+            CollectContactRigidBodies();
 
             // Extract information from contact rigid bodies
             if (contactRigidBodies != null && contactRigidBodies.Length > 0)
@@ -721,6 +725,40 @@ namespace Namako
                 Marshal.FreeHGlobal(nodeIdPtr);
                 Marshal.FreeHGlobal(displacementPtr);
             }
+        }
+
+        /// <summary>
+        /// NamakoRigidBodyタグが設定されたContact Rigid Bodiesを自動検出
+        /// </summary>
+        private void CollectContactRigidBodies()
+        {
+            const string NAMAKO_RIGID_BODY_TAG = "NamakoRigidBody";
+            var allContactRigidBodies = new List<GameObject>();
+
+            try
+            {
+                GameObject[] taggedObjects = GameObject.FindGameObjectsWithTag(NAMAKO_RIGID_BODY_TAG);
+                foreach (var obj in taggedObjects)
+                {
+                    // MeshFilterコンポーネントがあるかチェック
+                    if (obj.GetComponent<MeshFilter>() != null)
+                    {
+                        allContactRigidBodies.Add(obj);
+                        Debug.Log($"Found contact rigid body: '{obj.name}'");
+                    }
+                    else
+                    {
+                        Debug.LogWarning($"'{obj.name}' has tag '{NAMAKO_RIGID_BODY_TAG}' but no MeshFilter component");
+                    }
+                }
+            }
+            catch (UnityException ex)
+            {
+                Debug.LogWarning($"Tag '{NAMAKO_RIGID_BODY_TAG}' が存在しません。Tagを作成してからオブジェクトに設定してください。\nError: {ex.Message}");
+            }
+
+            contactRigidBodies = allContactRigidBodies.ToArray();
+            Debug.Log($"Total contact rigid bodies collected: {contactRigidBodies.Length}");
         }
 
         /// <summary>
