@@ -117,7 +117,7 @@ namespace Namako
         private int num_tets;
 
         private GameObject[] nodeObj;
-        private Component wireframeRenderer; // Reference to WireframeRenderer component
+        private WireframeRenderer wireframeRenderer;
 
         // Contact rigid body data storage
         private struct ContactRigidBodyData
@@ -178,31 +178,20 @@ namespace Namako
             {
                 StartFEM();
             }
-            
-            // Find WireframeRenderer component in the scene
-            StartCoroutine(FindAndInitializeWireframe());
         }
         
-        System.Collections.IEnumerator FindAndInitializeWireframe()
-        {
-            yield return null;
-            
-            GameObject tetMeshObj = GameObject.Find("TetMesh");
-            Transform wireframeTransform = tetMeshObj.transform.Find("tetras_wireframe");
-            System.Type wireframeType = System.Type.GetType("Namako.WireframeRenderer, Assembly-CSharp");
-            wireframeRenderer = wireframeTransform.GetComponent(wireframeType);
-            
-            var initializeMethod = wireframeType.GetMethod("Initialize");
-            int[] tetIndices = tetContainer.Tet;
-            int tetCount = tetContainer.Tets;
-            initializeMethod.Invoke(wireframeRenderer, new object[] { nodeObj, tetIndices, tetCount });
-        }
-
         private void InitializeFEM()
         {
             if (isInitialized) return;
 
             tetContainer = GetComponent<TetContainer>();
+
+            // Initialize wireframe renderer
+            GameObject wireframeObj = GameObject.Find("tetras_wireframe");
+            if (wireframeObj != null)
+            {
+                wireframeRenderer = wireframeObj.GetComponent<WireframeRenderer>();
+            }
 
             // Prepare fem_pos_cpp
             Vector3[] posw = tetContainer.GetNodePosW();
@@ -251,6 +240,14 @@ namespace Namako
 
             nodeObj = tetContainer.NodeObj;
             calcTime = new Queue<float>();
+
+            // Initialize wireframe renderer with tet data
+            if (wireframeRenderer != null)
+            {
+                int[] tetIndices = tetContainer.Tet;
+                int tetCount = tetContainer.Tets;
+                wireframeRenderer.Initialize(nodeObj, tetIndices, tetCount);
+            }
 
             // Extract information from contact rigid bodies
             if (contactRigidBodies != null && contactRigidBodies.Length > 0)
@@ -434,15 +431,7 @@ namespace Namako
         
         private void UpdateWireframeIfNeeded()
         {
-            if (wireframeRenderer != null)
-            {
-                System.Type wireframeType = wireframeRenderer.GetType();
-                var updateMethod = wireframeType.GetMethod("ForceUpdateWireframe");
-                if (updateMethod != null)
-                {
-                    updateMethod.Invoke(wireframeRenderer, null);
-                }
-            }
+            wireframeRenderer?.ForceUpdateWireframe();
         }
 
 
