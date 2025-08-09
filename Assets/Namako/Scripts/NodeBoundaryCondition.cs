@@ -22,15 +22,28 @@ namespace Namako
         private Renderer nodeRenderer;
         private Material originalMaterial;
         private Material fixedMaterial;
+        private Vector3 initialWorldPosition;
         
         void Start()
         {
+            // 初期ワールド座標位置を記憶
+            initialWorldPosition = transform.position;
+            
             nodeRenderer = GetComponent<Renderer>();
             if (nodeRenderer != null)
             {
                 originalMaterial = nodeRenderer.material;
                 CreateFixedMaterial();
                 UpdateVisualization();
+            }
+        }
+        
+        void Update()
+        {
+            // 固定ノードの場合、現在位置と初期位置の差分をdisplacementに格納
+            if (isFixed)
+            {
+                displacement = transform.position - initialWorldPosition;
             }
         }
         
