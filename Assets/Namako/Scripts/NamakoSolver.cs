@@ -400,7 +400,7 @@ namespace Namako
             NamakoNative.SetFloorHapticsEnabled(floorEnabled);
 
             // Apply boundary conditions
-            NamakoNative.FixBottom(fixHeight);
+            ApplyBoundaryConditions();
             NamakoNative.SetGravity(gravityFEM.x, gravityFEM.y, gravityFEM.z);
 
             // Update contact rigid body positions
@@ -422,7 +422,15 @@ namespace Namako
             for (int i = 0; i < num_nodes; ++i)
             {
                 nodeObj[i].GetComponent<MeshRenderer>().enabled = true;
-                nodeObj[i].transform.position = new Vector3(fem_pos[3*i+0], fem_pos[3*i+1], fem_pos[3*i+2]);
+                
+                // 境界条件をチェックして、固定ノードの場合は位置を更新しない
+                NodeBoundaryCondition boundaryCondition = nodeObj[i].GetComponent<NodeBoundaryCondition>();
+                bool isNodeFixed = boundaryCondition != null && boundaryCondition.isFixed;
+                
+                if (!isNodeFixed)
+                {
+                    nodeObj[i].transform.position = new Vector3(fem_pos[3*i+0], fem_pos[3*i+1], fem_pos[3*i+2]);
+                }
             }
             
             // Update wireframe if it exists
@@ -650,6 +658,102 @@ namespace Namako
                     Marshal.FreeHGlobal(vertexPtr);
                 }
             }
+        }
+
+        /// <summary>
+        /// 境界条件をネイティブライブラリに適用
+        /// </summary>
+        private void ApplyBoundaryConditions()
+        {
+            if (nodeObj == null || nodeObj.Length == 0)
+                return;
+
+            // 境界条件が設定されているノードを収集
+            var boundaryNodes = new List<(int nodeId, Vector3 displacement)>();
+            
+            for (int i = 0; i < nodeObj.Length; i++)
+            {
+                if (nodeObj[i] == null) continue;
+                
+                NodeBoundaryCondition boundaryCondition = nodeObj[i].GetComponent<NodeBoundaryCondition>();
+                if (boundaryCondition != null && boundaryCondition.isFixed)
+                {
+                    // GameObjectの名前からノードIDを抽出
+                    int nodeId = ExtractNodeIdFromName(nodeObj[i].name);
+                    if (nodeId >= 0)
+                    {
+                        boundaryNodes.Add((nodeId, boundaryCondition.displacement));
+                    }
+                }
+            }
+
+            // 境界条件が設定されているノードがない場合は何もしない
+            if (boundaryNodes.Count == 0)
+                return;
+
+            // ノードIDと変位データを配列に変換
+            int[] nodeIds = new int[boundaryNodes.Count];
+            float[] displacements = new float[boundaryNodes.Count * 3];
+            
+            for (int i = 0; i < boundaryNodes.Count; i++)
+            {
+                nodeIds[i] = boundaryNodes[i].nodeId;
+                displacements[i * 3 + 0] = boundaryNodes[i].displacement.x;
+                displacements[i * 3 + 1] = boundaryNodes[i].displacement.y;
+                displacements[i * 3 + 2] = boundaryNodes[i].displacement.z;
+            }
+
+            // メモリを確保してデータをコピー
+            IntPtr nodeIdPtr = Marshal.AllocHGlobal(nodeIds.Length * sizeof(int));
+            IntPtr displacementPtr = Marshal.AllocHGlobal(displacements.Length * sizeof(float));
+
+            try
+            {
+                Marshal.Copy(nodeIds, 0, nodeIdPtr, nodeIds.Length);
+                Marshal.Copy(displacements, 0, displacementPtr, displacements.Length);
+
+                // ネイティブライブラリに境界条件を設定
+                NamakoNative.SetBoundaryConditions(nodeIdPtr, nodeIds.Length, displacementPtr);
+            }
+            finally
+            {
+                // メモリを解放
+                Marshal.FreeHGlobal(nodeIdPtr);
+                Marshal.FreeHGlobal(displacementPtr);
+            }
+        }
+
+        /// <summary>
+        /// GameObjectの名前からノードIDを抽出
+        /// 名前の末尾の数字をノードIDとして使用
+        /// </summary>
+        /// <param name="name">GameObjectの名前</param>
+        /// <returns>ノードID（抽出できない場合は-1）</returns>
+        private int ExtractNodeIdFromName(string name)
+        {
+            if (string.IsNullOrEmpty(name))
+                return -1;
+
+            // 名前の末尾から数字を抽出
+            string numberStr = "";
+            for (int i = name.Length - 1; i >= 0; i--)
+            {
+                if (char.IsDigit(name[i]))
+                {
+                    numberStr = name[i] + numberStr;
+                }
+                else
+                {
+                    break;
+                }
+            }
+
+            if (int.TryParse(numberStr, out int nodeId))
+            {
+                return nodeId;
+            }
+
+            return -1;
         }
 
         /// <summary>

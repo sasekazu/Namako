@@ -50,10 +50,7 @@ namespace Namako
         [DllImport("namako")] 
         public static extern void GetContactNormal(IntPtr n);
 
-        // 物理パラメータ設定
-        [DllImport("namako")] 
-        public static extern void FixBottom(float range_zero_to_one);
-        
+        // 物理パラメータ設定        
         [DllImport("namako")] 
         public static extern void ScaleStiffness(float scale);
         
@@ -74,6 +71,10 @@ namespace Namako
         
         [DllImport("namako")] 
         public static extern void SetGravityRb(float gx, float gy, float gz);
+
+        // 境界条件設定
+        [DllImport("namako")]
+        public static extern void SetBoundaryConditions(IntPtr node_id_list, int n_ids, IntPtr displacements);
 
         // 力覚・衝突設定
         [DllImport("namako")] 
