@@ -574,8 +574,43 @@ namespace Namako
             }
         }
 
+        void FindExistingNodeObjects()
+        {
+            // meshObjを検索
+            if (meshObj == null)
+            {
+                meshObj = GameObject.Find(meshObjName);
+            }
+            
+            if (meshObj == null) return;
+            
+            // nodeRootObjを検索
+            Transform nodeRootTransform = meshObj.transform.Find("nodes");
+            if (nodeRootTransform == null) return;
+            
+            nodeRootObj = nodeRootTransform.gameObject;
+            
+            // 子オブジェクトからnodeObjを再構築
+            int childCount = nodeRootObj.transform.childCount;
+            if (childCount == 0) return;
+            
+            nodeObj = new GameObject[childCount];
+            nodes = childCount;
+            
+            for (int i = 0; i < childCount; i++)
+            {
+                nodeObj[i] = nodeRootObj.transform.GetChild(i).gameObject;
+            }
+        }
+
         void SetBoundaryConditionsByPosition(string mode)
         {
+            // UnityEditor再起動時に備えてnodeObjを再検索
+            if (nodeObj == null || nodeObj.Length == 0)
+            {
+                FindExistingNodeObjects();
+            }
+            
             if (nodeObj == null || nodeObj.Length == 0)
             {
                 Debug.LogWarning("ノードが生成されていません。先にメッシュを読み込んでください。");
