@@ -17,35 +17,39 @@ namespace Namako
         [Tooltip("Enable individual vertex force visualization")]
         public bool enableVertexForceVisualization = true;
         
-        [Tooltip("Force scale (arrow length)")]
-        public float forceScale = 1.0f;
-        
         [Tooltip("Arrow color")]
         public Color arrowColor = Color.red;
         
         [Tooltip("Line width")]
         public float lineWidth = 0.001f;
 
+        [Tooltip("Force scale (arrow length)")]
+        public float forceScale = 0.2f;
+        
         [Header("Total Force Visualization")]
         [Tooltip("Enable total force visualization")]
         public bool enableTotalForceVisualization = true;
-        
+                
         [Tooltip("Total force arrow color")]
         public Color totalForceColor = Color.blue;
         
         [Tooltip("Total force line width")]
-        public float totalForceLineWidth = 0.005f;
-        
-        [Tooltip("Total force scale")]
-        public float totalForceScale = 1.0f;
+        public float totalForceLineWidth = 0.001f;
 
+        [Tooltip("Total force scale")]
+        public float totalForceScale = 0.2f;
+        
         // Internal data
-        private List<LineRenderer> lineRenderers = new List<LineRenderer>();
-        private LineRenderer totalForceLineRenderer;
+        private List<GameObject> arrowObjects = new List<GameObject>();
+        private GameObject totalForceArrow;
+        private GameObject arrowParent;
         private MeshFilter targetMeshFilter;
         private Vector3[] targetVertices;
         private bool isInitialized = false;
         private NamakoSolver namakoSolver;
+        
+        // Cache for detecting enable/disable changes
+        private bool lastEnableTotalForceVisualization;
 
         void Start()
         {
@@ -54,6 +58,16 @@ namespace Namako
 
         void Update()
         {
+            // Check if total force visualization setting has changed
+            if (isInitialized && lastEnableTotalForceVisualization != enableTotalForceVisualization)
+            {
+                if (!enableTotalForceVisualization && totalForceArrow != null)
+                {
+                    totalForceArrow.SetActive(false);
+                }
+                lastEnableTotalForceVisualization = enableTotalForceVisualization;
+            }
+            
             if (enableVisualization && isInitialized && namakoSolver != null && namakoSolver.IsFEMStarted)
             {
                 UpdateForceVisualization();
@@ -86,73 +100,133 @@ namespace Namako
             }
 
             targetVertices = targetMeshFilter.mesh.vertices;
-            CreateLineRenderers();
+            CreateArrowRenderers();
+            
+            // Initialize cache
+            lastEnableTotalForceVisualization = enableTotalForceVisualization;
             
             isInitialized = true;
             Debug.Log($"NamakoForceVisualizer initialized for {gameObject.name} with {targetVertices.Length} vertices");
         }
 
         /// <summary>
-        /// Create LineRenderers
+        /// Create 3D arrow objects
         /// </summary>
-        private void CreateLineRenderers()
+        private void CreateArrowRenderers()
         {
-            ClearLineRenderers();
+            ClearArrowRenderers();
 
             // Create empty parent object
-            GameObject lineParent = new GameObject($"ForceLines_{gameObject.name}");
+            arrowParent = new GameObject($"ForceArrows_{gameObject.name}");
 
-            // Create LineRenderer for each vertex as child of empty parent
+            // Create 3D arrow for each vertex as child of empty parent
             for (int i = 0; i < targetVertices.Length; i++)
             {
-                GameObject lineObj = new GameObject($"ForceLine_{i}");
-                lineObj.transform.SetParent(lineParent.transform);
+                GameObject arrowObj = CreateArrowObject($"ForceArrow_{i}");
+                arrowObj.transform.SetParent(arrowParent.transform);
+                arrowObj.SetActive(false);
                 
-                LineRenderer lr = lineObj.AddComponent<LineRenderer>();
-                lr.material = CreateLineMaterial();
-                lr.startWidth = lineWidth;
-                lr.endWidth = lineWidth * 0.5f;
-                lr.positionCount = 2;
-                lr.useWorldSpace = true;
-                lr.enabled = false;
-                
-                lineRenderers.Add(lr);
+                arrowObjects.Add(arrowObj);
             }
 
-            // Create total force LineRenderer
+            // Create total force arrow
             if (enableTotalForceVisualization)
             {
-                GameObject totalForceObj = new GameObject("TotalForce");
-                totalForceObj.transform.SetParent(lineParent.transform);
-                
-                totalForceLineRenderer = totalForceObj.AddComponent<LineRenderer>();
-                totalForceLineRenderer.material = CreateTotalForceMaterial();
-                totalForceLineRenderer.startWidth = totalForceLineWidth;
-                totalForceLineRenderer.endWidth = totalForceLineWidth * 0.5f;
-                totalForceLineRenderer.positionCount = 2;
-                totalForceLineRenderer.useWorldSpace = true;
-                totalForceLineRenderer.enabled = false;
+                totalForceArrow = CreateTotalForceArrowObject("TotalForceArrow");
+                totalForceArrow.transform.SetParent(arrowParent.transform);
+                totalForceArrow.SetActive(false);
             }
         }
 
         /// <summary>
-        /// Create material for LineRenderer
+        /// Create 3D arrow object (cylinder + cone)
         /// </summary>
-        private Material CreateLineMaterial()
+        private GameObject CreateArrowObject(string name)
         {
-            Material material = new Material(Shader.Find("Sprites/Default"));
-            material.color = arrowColor;
-            return material;
+            return CreateArrowObject(name, lineWidth, arrowColor);
         }
 
         /// <summary>
-        /// Create material for Total Force LineRenderer
+        /// Create 3D total force arrow object (cylinder + cone) with total force line width
         /// </summary>
-        private Material CreateTotalForceMaterial()
+        private GameObject CreateTotalForceArrowObject(string name)
         {
-            Material material = new Material(Shader.Find("Sprites/Default"));
-            material.color = totalForceColor;
-            return material;
+            return CreateArrowObject(name, totalForceLineWidth, totalForceColor);
+        }
+
+        /// <summary>
+        /// Create 3D arrow object (cylinder + cone) with specified width and color
+        /// </summary>
+        private GameObject CreateArrowObject(string name, float width, Color color)
+        {
+            GameObject arrowRoot = new GameObject(name);
+            
+            // Create cylinder (shaft)
+            GameObject cylinder = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
+            cylinder.name = "Shaft";
+            cylinder.transform.SetParent(arrowRoot.transform);
+            cylinder.transform.localPosition = new Vector3(0, 0.35f, 0);
+            cylinder.transform.localScale = new Vector3(width, 0.35f, width);
+            
+            // Create cone (head) with fixed aspect ratio (length:diameter = 3)
+            GameObject cone = CreateConeObject();
+            cone.name = "Head";
+            cone.transform.SetParent(arrowRoot.transform);
+            cone.transform.localPosition = new Vector3(0, 0.85f, 0);
+            cone.transform.localScale = new Vector3(width * 3f, width * 3f, width * 3f);
+            
+            // Set materials
+            SetArrowColor(arrowRoot, color);
+            
+            return arrowRoot;
+        }
+
+        /// <summary>
+        /// Create cone object by modifying cylinder mesh
+        /// </summary>
+        private GameObject CreateConeObject()
+        {
+            GameObject cone = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
+            
+            // Get the mesh and create a cone by modifying vertices
+            MeshFilter meshFilter = cone.GetComponent<MeshFilter>();
+            Mesh mesh = Instantiate(meshFilter.mesh);
+            
+            Vector3[] vertices = mesh.vertices;
+            
+            // Modify top vertices to create cone shape
+            for (int i = 0; i < vertices.Length; i++)
+            {
+                // Top vertices (y > 0.4) should be moved to center
+                if (vertices[i].y > 0.4f)
+                {
+                    vertices[i] = new Vector3(0, vertices[i].y, 0);
+                }
+            }
+            
+            mesh.vertices = vertices;
+            mesh.RecalculateNormals();
+            mesh.RecalculateBounds();
+            meshFilter.mesh = mesh;
+            
+            return cone;
+        }
+
+        /// <summary>
+        /// Set arrow color
+        /// </summary>
+        private void SetArrowColor(GameObject arrow, Color color)
+        {
+            Material material = new Material(Shader.Find("Standard"));
+            material.color = color;
+            material.SetFloat("_Metallic", 0f);
+            material.SetFloat("_Glossiness", 0.3f);
+            
+            Renderer[] renderers = arrow.GetComponentsInChildren<Renderer>();
+            foreach (Renderer renderer in renderers)
+            {
+                renderer.material = material;
+            }
         }
 
         /// <summary>
@@ -160,7 +234,7 @@ namespace Namako
         /// </summary>
         private void UpdateForceVisualization()
         {
-            if (targetVertices == null || lineRenderers.Count != targetVertices.Length)
+            if (targetVertices == null || arrowObjects.Count != targetVertices.Length)
             {
                 return;
             }
@@ -185,7 +259,7 @@ namespace Namako
             {
                 for (int i = 0; i < targetVertices.Length; i++)
                 {
-                    UpdateLineRenderer(i, worldVertices[i], forces[i]);
+                    UpdateArrowObject(i, worldVertices[i], forces[i]);
                 }
             }
             else
@@ -194,9 +268,13 @@ namespace Namako
             }
 
             // Update total force visualization
-            if (enableTotalForceVisualization && totalForceLineRenderer != null)
+            if (enableTotalForceVisualization && totalForceArrow != null)
             {
                 UpdateTotalForceVisualization(worldVertices, forces);
+            }
+            else if (totalForceArrow != null)
+            {
+                totalForceArrow.SetActive(false);
             }
         }
 
@@ -222,26 +300,18 @@ namespace Namako
 
             if (activeContactCount == 0 || totalForce.magnitude < 0.01f)
             {
-                totalForceLineRenderer.enabled = false;
+                totalForceArrow.SetActive(false);
                 return;
             }
 
             // Calculate average contact position
             contactCenterPosition /= activeContactCount;
 
-            // Update total force LineRenderer
-            totalForceLineRenderer.enabled = true;
+            // Update total force arrow
+            totalForceArrow.SetActive(true);
             
             float scaledLength = totalForce.magnitude * totalForceScale;
-            Vector3 endPosition = contactCenterPosition + totalForce.normalized * scaledLength;
-            
-            totalForceLineRenderer.SetPosition(0, contactCenterPosition);
-            totalForceLineRenderer.SetPosition(1, endPosition);
-            
-            // Update material
-            totalForceLineRenderer.material.color = totalForceColor;
-            totalForceLineRenderer.startWidth = totalForceLineWidth;
-            totalForceLineRenderer.endWidth = totalForceLineWidth * 0.5f;
+            UpdateArrowTransform(totalForceArrow, contactCenterPosition, totalForce.normalized, scaledLength);
         }
 
         /// <summary>
@@ -290,38 +360,65 @@ namespace Namako
         }
 
         /// <summary>
-        /// Update LineRenderer
+        /// Update arrow object
         /// </summary>
-        private void UpdateLineRenderer(int index, Vector3 position, Vector3 force)
+        private void UpdateArrowObject(int index, Vector3 position, Vector3 force)
         {
-            if (index >= lineRenderers.Count)
+            if (index >= arrowObjects.Count)
             {
                 return;
             }
 
-            LineRenderer lr = lineRenderers[index];
+            GameObject arrow = arrowObjects[index];
             float forceMagnitude = force.magnitude;
             
             if (forceMagnitude < 0.01f)
             {
-                lr.enabled = false;
+                arrow.SetActive(false);
                 return;
             }
 
-            lr.enabled = true;
+            arrow.SetActive(true);
             
-            // Calculate arrow end point
             float scaledLength = forceMagnitude * forceScale;
-            Vector3 endPosition = position + force.normalized * scaledLength;
+            UpdateArrowTransform(arrow, position, force.normalized, scaledLength);
+        }
+
+        /// <summary>
+        /// Update arrow transform (position, rotation, scale)
+        /// </summary>
+        private void UpdateArrowTransform(GameObject arrow, Vector3 position, Vector3 direction, float length)
+        {
+            arrow.transform.position = position;
+            // Rotate so that Y-axis (up) aligns with the force direction
+            arrow.transform.rotation = Quaternion.FromToRotation(Vector3.up, direction);
             
-            // Set LineRenderer positions
-            lr.SetPosition(0, position);
-            lr.SetPosition(1, endPosition);
+            // Determine which line width to use
+            float width = (arrow == totalForceArrow) ? totalForceLineWidth : lineWidth;
             
-            // Update material
-            lr.material.color = arrowColor;
-            lr.startWidth = lineWidth;
-            lr.endWidth = lineWidth * 0.5f;
+            // Calculate fixed cone height (length:diameter ratio = 3)
+            float coneHeight = width * 3f;
+            
+            // Get arrow components
+            Transform shaft = arrow.transform.Find("Shaft");
+            Transform head = arrow.transform.Find("Head");
+            
+            // Update shaft (cylinder) scale and position
+            if (shaft != null)
+            {
+                // Shaft extends from base to just before the cone
+                float shaftHeight = length - coneHeight;
+                shaft.localPosition = new Vector3(0, shaftHeight * 0.5f, 0);
+                shaft.localScale = new Vector3(width, shaftHeight * 0.5f, width);
+            }
+            
+            // Update head (cone) position and scale with fixed aspect ratio
+            if (head != null)
+            {
+                // Position cone at the tip
+                head.localPosition = new Vector3(0, length - coneHeight * 0.5f, 0);
+                head.localScale = new Vector3(width * 3f, coneHeight, width * 3f);
+            }
         }
 
         /// <summary>
@@ -331,9 +428,9 @@ namespace Namako
         {
             HideVertexArrows();
 
-            if (totalForceLineRenderer != null)
+            if (totalForceArrow != null)
             {
-                totalForceLineRenderer.enabled = false;
+                totalForceArrow.SetActive(false);
             }
         }
 
@@ -342,39 +439,61 @@ namespace Namako
         /// </summary>
         private void HideVertexArrows()
         {
-            foreach (LineRenderer lr in lineRenderers)
+            SetArrowsActive(arrowObjects, false);
+        }
+
+        /// <summary>
+        /// Set active state for a list of arrows
+        /// </summary>
+        private void SetArrowsActive(List<GameObject> arrows, bool active)
+        {
+            foreach (GameObject arrow in arrows)
             {
-                if (lr != null)
+                if (arrow != null)
                 {
-                    lr.enabled = false;
+                    arrow.SetActive(active);
                 }
             }
         }
 
         /// <summary>
-        /// Clear LineRenderers
+        /// Clear arrow objects
         /// </summary>
-        private void ClearLineRenderers()
+        private void ClearArrowRenderers()
         {
-            foreach (LineRenderer lr in lineRenderers)
+            ClearArrowList(arrowObjects);
+            
+            if (totalForceArrow != null)
             {
-                if (lr != null)
+                DestroyImmediate(totalForceArrow);
+                totalForceArrow = null;
+            }
+            
+            if (arrowParent != null)
+            {
+                DestroyImmediate(arrowParent);
+                arrowParent = null;
+            }
+        }
+        
+        /// <summary>
+        /// Helper method to clear a list of arrow GameObjects
+        /// </summary>
+        private void ClearArrowList(List<GameObject> arrows)
+        {
+            foreach (GameObject arrow in arrows)
+            {
+                if (arrow != null)
                 {
-                    DestroyImmediate(lr.gameObject);
+                    DestroyImmediate(arrow);
                 }
             }
-            lineRenderers.Clear();
-
-            if (totalForceLineRenderer != null)
-            {
-                DestroyImmediate(totalForceLineRenderer.gameObject);
-                totalForceLineRenderer = null;
-            }
+            arrows.Clear();
         }
 
         private void OnDestroy()
         {
-            ClearLineRenderers();
+            ClearArrowRenderers();
         }
     }
 }
