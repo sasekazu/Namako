@@ -42,7 +42,6 @@ namespace Namako
         private bool showMeshInfo = true;
         private Component wireframeRenderer;
 
-        [MenuItem("Window/NamakoMeshTool")]
         public static void ShowWindow()
         {
             NamakoMeshTool window = EditorWindow.GetWindow(typeof(NamakoMeshTool)) as NamakoMeshTool;
@@ -235,15 +234,63 @@ namespace Namako
 
         void CleanMesh()
         {
-            DestroyImmediate(GameObject.Find(meshObjName));
-            DestroyImmediate(GameObject.Find(surfaceMeshObjName));
-            DestroyImmediate(GameObject.Find("tetras_wireframe"));
-            AssetDatabase.DeleteAsset(savePath);
-            AssetDatabase.Refresh();
+            CleanMeshObjects();
+            CleanGeneratedFiles();
             
             // Reset visibility flags and wireframe reference
             showWireframe = true;
             wireframeRenderer = null;
+        }
+
+        public static void CleanMeshObjects()
+        {
+            int cleanedCount = 0;
+
+            // NamakoTetraMeshコンポーネントを持つオブジェクトを検索・削除
+            System.Type namakoTetraMeshType = System.Type.GetType("Namako.NamakoTetraMesh, Assembly-CSharp");
+            if (namakoTetraMeshType != null)
+            {
+                UnityEngine.Object[] tetraMeshComponents = UnityEngine.Object.FindObjectsOfType(namakoTetraMeshType);
+                foreach (UnityEngine.Object tetraMesh in tetraMeshComponents)
+                {
+                    if (tetraMesh != null && tetraMesh is Component component)
+                    {
+                        GameObject tetraMeshObj = component.gameObject;
+                        Debug.Log($"Removing object with NamakoTetraMesh: {tetraMeshObj.name}");
+                        UnityEngine.Object.DestroyImmediate(tetraMeshObj);
+                        cleanedCount++;
+                    }
+                }
+            }
+
+            // フォールバック: 特定の名前のオブジェクトも削除
+            string[] meshObjectNames = { "TetraMesh", "SurfaceMesh", "tetras_wireframe" };
+            foreach (string objName in meshObjectNames)
+            {
+                GameObject obj = GameObject.Find(objName);
+                if (obj != null)
+                {
+                    Debug.Log($"Removing mesh object by name: {objName}");
+                    UnityEngine.Object.DestroyImmediate(obj);
+                    cleanedCount++;
+                }
+            }
+
+            Debug.Log($"Mesh cleanup completed. {cleanedCount} mesh objects removed.");
+        }
+
+        public static void CleanGeneratedFiles()
+        {
+            string scenePath = SceneManager.GetActiveScene().path;
+            if (!string.IsNullOrEmpty(scenePath))
+            {
+                string savePath = scenePath.Replace(".unity", "-generatedmesh.json");
+                if (AssetDatabase.DeleteAsset(savePath))
+                {
+                    Debug.Log($"Generated mesh file removed: {savePath}");
+                }
+            }
+            AssetDatabase.Refresh();
         }
 
         void SaveMeshJSON()

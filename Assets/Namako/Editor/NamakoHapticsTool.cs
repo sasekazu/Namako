@@ -15,7 +15,6 @@ namespace Namako
         private float hipRadius = 0.03f;
         private Vector2 scrollPosition = Vector2.zero;
 
-        [MenuItem("Window/NamakoHapticsTool")]
         public static void ShowWindow()
         {
             NamakoHapticsTool window = EditorWindow.GetWindow(typeof(NamakoHapticsTool)) as NamakoHapticsTool;
@@ -68,7 +67,7 @@ namespace Namako
                     "Are you sure you want to clean all haptic objects? This action cannot be undone.", 
                     "Yes", "Cancel"))
                 {
-                    CleanHapticObjects();
+                    CleanHapticObjectsInstance();
                 }
             }
             GUI.backgroundColor = Color.white;
@@ -82,7 +81,7 @@ namespace Namako
         void GenerateHapticInterface()
         {
             // Clean existing haptic objects first
-            CleanHapticObjects();
+            CleanHapticObjectsInstance();
 
             // Generate HapticTool parent object
             hapticToolObj = new GameObject(hapticInterfaceObjName);
@@ -157,17 +156,43 @@ namespace Namako
             Debug.Log("Haptic interface generated successfully.");
         }
 
-        void CleanHapticObjects()
+        public static void CleanHapticObjects()
         {
-            // Find and destroy haptic tool parent object (this will destroy all children)
-            GameObject existingHapticTool = GameObject.Find(hapticInterfaceObjName);
-            
-            if (existingHapticTool != null)
+            int cleanedCount = 0;
+
+            // NamakoHapticsコンポーネントを持つオブジェクトを検索・削除
+            System.Type namakoHapticsType = System.Type.GetType("Namako.NamakoHaptics, Assembly-CSharp");
+            if (namakoHapticsType != null)
             {
-                DestroyImmediate(existingHapticTool);
-                Debug.Log($"Cleaned {hapticInterfaceObjName} object and all its children.");
+                UnityEngine.Object[] hapticsComponents = UnityEngine.Object.FindObjectsOfType(namakoHapticsType);
+                foreach (UnityEngine.Object haptics in hapticsComponents)
+                {
+                    if (haptics != null && haptics is Component component)
+                    {
+                        GameObject hapticsObj = component.gameObject;
+                        Debug.Log($"Removing object with NamakoHaptics: {hapticsObj.name}");
+                        UnityEngine.Object.DestroyImmediate(hapticsObj);
+                        cleanedCount++;
+                    }
+                }
             }
 
+            // フォールバック: 特定の名前のオブジェクトも削除
+            GameObject existingHapticTool = GameObject.Find("HapticInterfaceObject");
+            if (existingHapticTool != null)
+            {
+                Debug.Log($"Removing haptic object by name: HapticInterfaceObject");
+                UnityEngine.Object.DestroyImmediate(existingHapticTool);
+                cleanedCount++;
+            }
+
+            Debug.Log($"Haptic cleanup completed. {cleanedCount} haptic objects removed.");
+        }
+
+        void CleanHapticObjectsInstance()
+        {
+            CleanHapticObjects();
+            
             // Clear references
             hapticToolObj = null;
             inputObj = null;
