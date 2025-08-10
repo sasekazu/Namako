@@ -24,6 +24,52 @@ namespace Namako
         }
 
         // Quick Actions
+        [MenuItem("Namako/Quick Actions/Clean Meshes")]
+        public static void CleanMeshes()
+        {
+            if (EditorUtility.DisplayDialog("Confirm Clean Meshes", 
+                "Are you sure you want to clean all mesh objects with NamakoTetraMesh components and generated files? This action cannot be undone.", 
+                "Yes", "Cancel"))
+            {
+                NamakoMeshTool.CleanMeshObjects();
+                NamakoMeshTool.CleanGeneratedFiles();
+                
+                SceneView.RepaintAll();
+                
+                Debug.Log("Mesh objects have been cleaned.");
+            }
+        }
+
+        [MenuItem("Namako/Quick Actions/Clean Haptics")]
+        public static void CleanHaptics()
+        {
+            if (EditorUtility.DisplayDialog("Confirm Clean Haptics", 
+                "Are you sure you want to clean all haptic objects with NamakoHaptics components? This action cannot be undone.", 
+                "Yes", "Cancel"))
+            {
+                NamakoHapticsTool.CleanHapticObjects();
+                
+                SceneView.RepaintAll();
+                
+                Debug.Log("Haptic objects have been cleaned.");
+            }
+        }
+
+        [MenuItem("Namako/Quick Actions/Clean Solver")]
+        public static void CleanSolver()
+        {
+            if (EditorUtility.DisplayDialog("Confirm Clean Solver", 
+                "Are you sure you want to clean all solver objects with NamakoSolver components? This action cannot be undone.", 
+                "Yes", "Cancel"))
+            {
+                CleanSolverObjects();
+                
+                SceneView.RepaintAll();
+                
+                Debug.Log("Solver objects have been cleaned.");
+            }
+        }
+
         [MenuItem("Namako/Quick Actions/Clean Solver, Meshes and Haptics")]
         public static void CleanAllMeshes()
         {
@@ -41,6 +87,27 @@ namespace Namako
                 SceneView.RepaintAll();
                 
                 Debug.Log("All objects with Namako components and generated files have been cleaned.");
+            }
+        }
+
+        [MenuItem("Namako/Quick Actions/Fix Bottom 10%")]
+        public static void FixBottom()
+        {
+            // メッシュツールのSetBoundaryConditionsByPositionメソッドを呼び出す
+            var meshToolWindow = EditorWindow.GetWindow<NamakoMeshTool>();
+            
+            // リフレクションを使用してprivateメソッドを呼び出し
+            var methodInfo = typeof(NamakoMeshTool).GetMethod("SetBoundaryConditionsByPosition", 
+                System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+            
+            if (methodInfo != null)
+            {
+                methodInfo.Invoke(meshToolWindow, new object[] { "bottom" });
+                Debug.Log("Bottom 10% of nodes have been fixed.");
+            }
+            else
+            {
+                Debug.LogError("SetBoundaryConditionsByPosition method not found.");
             }
         }
 
@@ -67,12 +134,16 @@ namespace Namako
             }
 
             // フォールバック: 特定の名前のオブジェクトも削除
-            GameObject solverObject = GameObject.Find("SolverObject");
-            if (solverObject != null)
+            string[] solverObjectNames = { "SolverObject", "NamakoSolverManager" };
+            foreach (string objName in solverObjectNames)
             {
-                Debug.Log($"Removing solver object by name: SolverObject");
-                UnityEngine.Object.DestroyImmediate(solverObject);
-                cleanedCount++;
+                GameObject solverObject = GameObject.Find(objName);
+                if (solverObject != null)
+                {
+                    Debug.Log($"Removing solver object by name: {objName}");
+                    UnityEngine.Object.DestroyImmediate(solverObject);
+                    cleanedCount++;
+                }
             }
 
             Debug.Log($"Solver cleanup completed. {cleanedCount} solver objects removed.");

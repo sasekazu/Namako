@@ -336,8 +336,8 @@ namespace Namako
             tetContainer.meshJsonAsset = jsonAsset;
             tetContainer.tetraScale = tetraScale;
             
-            // 既存のSolverObjectを検索
-            GameObject solverObj = GameObject.Find("SolverObject");
+            // 既存のNamakoSolverManagerを検索
+            GameObject solverObj = GameObject.Find("NamakoSolverManager");
             NamakoSolver solver = null;
             
             if (solverObj != null)
@@ -350,7 +350,7 @@ namespace Namako
             {
                 if (solverObj == null)
                 {
-                    solverObj = new GameObject("SolverObject");
+                    solverObj = new GameObject("NamakoSolverManager");
                 }
                 
                 solver = NamakoSolver.CreateFromTool(solverObj);
