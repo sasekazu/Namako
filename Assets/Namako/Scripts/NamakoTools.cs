@@ -70,13 +70,20 @@ namespace Namako
             // Prepare vmesh_pos_cpp
             int l = 3 * n_vert_all;
             vmesh_pos = new float[l];
-            for (int i = 0; i < n_vert_all; ++i)
+            int vertex_index = 0;
+            for (int i = 0; i < n_mesh; ++i)
             {
-                // Convert local coodinate to world coordinate
-                Vector3 worldpt = visualObj.transform.localToWorldMatrix.MultiplyPoint3x4(pos_all[i]);
-                for (int j = 0; j < 3; ++j)
+                for (int j = 0; j < n_vert[i]; ++j)
                 {
-                    vmesh_pos[3 * i + j] = worldpt[j];
+                    // Convert local coordinate to world coordinate considering child object's transform
+                    Vector3 localPos = pos_all[vert_offsets[i] + j];
+                    Vector3 worldpt = mfs[i].transform.localToWorldMatrix.MultiplyPoint3x4(localPos);
+                    
+                    for (int k = 0; k < 3; ++k)
+                    {
+                        vmesh_pos[3 * vertex_index + k] = worldpt[k];
+                    }
+                    vertex_index++;
                 }
             }
         }
@@ -90,10 +97,8 @@ namespace Namako
                 for (int i = 0; i < n_vert[m]; ++i)
                 {
                     int pos_id = vert_offsets[m] + i;
-                    pos[i][0] = new_pos[3 * pos_id + 0];
-                    pos[i][1] = new_pos[3 * pos_id + 1];
-                    pos[i][2] = new_pos[3 * pos_id + 2];
-                    pos[i] = visualObj.transform.worldToLocalMatrix.MultiplyPoint3x4(pos[i]);
+                    Vector3 worldPos = new Vector3(new_pos[3 * pos_id + 0], new_pos[3 * pos_id + 1], new_pos[3 * pos_id + 2]);
+                    pos[i] = mfs[m].transform.worldToLocalMatrix.MultiplyPoint3x4(worldPos);
                 }
 
                 //Debug.Log(pos[0]);
