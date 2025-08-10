@@ -38,6 +38,7 @@ namespace Namako
         private bool showNodes = true;
         private bool showTetras = true;
         private bool showWireframe = true;
+        private bool showVisualModel = true;
         private Vector2 scrollPosition = Vector2.zero;
         private bool showMeshInfo = true;
         private Component wireframeRenderer;
@@ -204,6 +205,12 @@ namespace Namako
             {
                 ToggleWireframeVisibility();
             }
+            
+            GUI.backgroundColor = showVisualModel ? new Color(0.8f, 1.0f, 0.8f) : new Color(1.0f, 0.8f, 0.8f);
+            if (GUILayout.Button(showVisualModel ? "Hide Visual Model" : "Show Visual Model", GUILayout.Height(25)))
+            {
+                ToggleVisualModelVisibility();
+            }
             GUI.backgroundColor = Color.white;
             EditorGUILayout.EndHorizontal();
             
@@ -239,6 +246,7 @@ namespace Namako
             
             // Reset visibility flags and wireframe reference
             showWireframe = true;
+            showVisualModel = true;
             wireframeRenderer = null;
         }
 
@@ -541,7 +549,7 @@ namespace Namako
             // 表面メッシュを抽出してGameObjectとして保存（チェックボックスがオンの場合のみ）
             if (generateSurfaceMesh)
             {
-                GameObject surfaceMeshObj = TetrahedralMeshTools.ExtractSurfaceMesh(pos, tet, nodes, tets, meshObj.transform.parent, surfaceMeshObjName);
+                GameObject surfaceMeshObj = TetrahedralMeshTools.ExtractSurfaceMesh(pos, tet, nodes, tets, meshObj.transform, surfaceMeshObjName);
                 visObj = surfaceMeshObj; // 作成した表面メッシュをvisObjに格納
             }
         }
@@ -725,7 +733,7 @@ namespace Namako
             for (int i = 0; i < nodeObj.Length; i++)
             {
                 if (nodeObj[i] == null) continue;
-                Vector3 pos = nodeObj[i].transform.localPosition;
+                Vector3 pos = nodeObj[i].transform.position; // ワールド座標を使用
                 
                 if (pos.x < minX) minX = pos.x;
                 if (pos.x > maxX) maxX = pos.x;
@@ -751,7 +759,7 @@ namespace Namako
                 var boundaryCondition = nodeObj[i].GetComponent(boundaryConditionType);
                 if (boundaryCondition == null) continue;
 
-                Vector3 position = nodeObj[i].transform.localPosition;
+                Vector3 position = nodeObj[i].transform.position; // ワールド座標を使用
                 bool shouldFix = false;
 
                 switch (mode)
@@ -848,6 +856,31 @@ namespace Namako
                 DestroyWireframeRenderer();
             }
             SceneView.RepaintAll();
+        }
+
+        void ToggleVisualModelVisibility()
+        {
+            showVisualModel = !showVisualModel;
+            
+            // NamakoSolverからvisual objを取得
+            GameObject solverObj = GameObject.Find("NamakoSolverManager");
+            if (solverObj != null)
+            {
+                NamakoSolver solver = solverObj.GetComponent<NamakoSolver>();
+                if (solver != null && solver.visualObj != null)
+                {
+                    solver.visualObj.SetActive(showVisualModel);
+                    SceneView.RepaintAll();
+                    return;
+                }
+            }
+            
+            // フォールバック: 直接visObjを使用
+            if (visObj != null)
+            {
+                visObj.SetActive(showVisualModel);
+                SceneView.RepaintAll();
+            }
         }
 
         void CreateWireframeRenderer()
@@ -1012,6 +1045,11 @@ namespace Namako
                 EditorGUILayout.BeginHorizontal();
                 EditorGUILayout.LabelField("Wireframe:", GUILayout.Width(80));
                 EditorGUILayout.LabelField(showWireframe ? "Yes" : "No", EditorStyles.miniLabel);
+                EditorGUILayout.EndHorizontal();
+                
+                EditorGUILayout.BeginHorizontal();
+                EditorGUILayout.LabelField("Visual Model:", GUILayout.Width(80));
+                EditorGUILayout.LabelField(showVisualModel ? "Yes" : "No", EditorStyles.miniLabel);
                 EditorGUILayout.EndHorizontal();
                 
                 // Boundary conditions count
