@@ -8,9 +8,11 @@ namespace Namako
         private GameObject meshObj;
         private GameObject proxyObj;
         private GameObject inputObj;
+        private GameObject hapticToolObj;
         private string proxyObjName = "Proxy";
         private string inputObjName = "Input";
-        private string meshObjName = "TetMesh";
+        private string hapticInterfaceObjName = "HapticInterfaceObject";
+        private float hipRadius = 0.03f;
         private Vector2 scrollPosition = Vector2.zero;
 
         [MenuItem("Window/NamakoHapticsTool")]
@@ -35,7 +37,8 @@ namespace Namako
             DrawSectionHeader("Haptic Interface", "Generate proxy and input objects for haptic interaction");
             EditorGUI.indentLevel++;
             
-            meshObj = EditorGUILayout.ObjectField("Tetrahedral Mesh Object", meshObj, typeof(GameObject), true) as GameObject;
+            // HIP Radius input
+            hipRadius = EditorGUILayout.Slider("HIP Radius", hipRadius, 0.001f, 0.1f);
             
             GUI.backgroundColor = Color.green;
             if (GUILayout.Button("Generate Haptic Interface", GUILayout.Height(30)))
@@ -78,71 +81,94 @@ namespace Namako
 
         void GenerateHapticInterface()
         {
-            if (meshObj == null)
-            {
-                Debug.LogError("Tetrahedral Mesh Object not found. Please assign a mesh object with NamakoSolver component.");
-                return;
-            }
-
-            NamakoSolver solver = meshObj.GetComponent<NamakoSolver>();
-            if (solver == null)
-            {
-                Debug.LogError("NamakoSolver component not found on the mesh object. Please generate the mesh first using NamakoMeshTool.");
-                return;
-            }
-
             // Clean existing haptic objects first
             CleanHapticObjects();
 
+            // Generate HapticTool parent object
+            hapticToolObj = new GameObject(hapticInterfaceObjName);
+            hapticToolObj.transform.SetPositionAndRotation(Vector3.zero, Quaternion.identity);
+
+            // Add NamakoHaptics component to HapticTool
+            Component namakoHapticsComponent = null;
+            
+            try
+            {
+                // Try multiple methods to add the component
+                
+                // Method 1: Use reflection to find type in all assemblies
+                var assemblies = System.AppDomain.CurrentDomain.GetAssemblies();
+                System.Type namakoHapticsType = null;
+                
+                foreach (var assembly in assemblies)
+                {
+                    namakoHapticsType = assembly.GetType("Namako.NamakoHaptics");
+                    if (namakoHapticsType != null) break;
+                }
+                
+                if (namakoHapticsType != null)
+                {
+                    namakoHapticsComponent = hapticToolObj.AddComponent(namakoHapticsType);
+                    Debug.Log("NamakoHaptics component added successfully using reflection.");
+                }
+                else
+                {
+                    Debug.LogWarning("NamakoHaptics component type not found. Please add it manually after generation.");
+                }
+            }
+            catch (System.Exception e)
+            {
+                Debug.LogWarning($"Failed to add NamakoHaptics component: {e.Message}. Please add it manually after generation.");
+            }
+
             // Generate Input object
             inputObj = new GameObject(inputObjName);
+            inputObj.transform.SetParent(hapticToolObj.transform);
             inputObj.transform.SetPositionAndRotation(new Vector3(0.0f, 0.2f, 0.0f), Quaternion.identity);
 
             // Generate Proxy object
             proxyObj = GameObject.CreatePrimitive(PrimitiveType.Sphere);
             proxyObj.name = proxyObjName;
-            proxyObj.transform.localScale = Vector3.one * solver.HIPRad * 2.0f;
+            proxyObj.transform.SetParent(hapticToolObj.transform);
+            // Set proxy scale based on HIP radius (diameter = radius * 2)
+            proxyObj.transform.localScale = Vector3.one * hipRadius * 2.0f;
             proxyObj.transform.SetPositionAndRotation(inputObj.transform.position, Quaternion.identity);
 
-            // Setup solver references
-            solver.proxyObj = proxyObj;
-            solver.inputObj = inputObj;
+            // Set HIP Radius in NamakoHaptics component if it was successfully added
+            if (namakoHapticsComponent != null)
+            {
+                // Use SerializedObject to set the HIPRad field
+                SerializedObject serializedHaptics = new SerializedObject(namakoHapticsComponent);
+                SerializedProperty hipRadProperty = serializedHaptics.FindProperty("HIPRad");
+                if (hipRadProperty != null)
+                {
+                    hipRadProperty.floatValue = hipRadius;
+                    serializedHaptics.ApplyModifiedProperties();
+                    Debug.Log($"HIP Radius set to {hipRadius} in NamakoHaptics component.");
+                }
+                else
+                {
+                    Debug.LogWarning("HIPRad property not found in NamakoHaptics component.");
+                }
+            }
 
             Debug.Log("Haptic interface generated successfully.");
         }
 
         void CleanHapticObjects()
         {
-            // Find and destroy haptic objects
-            GameObject existingInput = GameObject.Find(inputObjName);
-            GameObject existingProxy = GameObject.Find(proxyObjName);
-
-            if (existingInput != null)
+            // Find and destroy haptic tool parent object (this will destroy all children)
+            GameObject existingHapticTool = GameObject.Find(hapticInterfaceObjName);
+            
+            if (existingHapticTool != null)
             {
-                DestroyImmediate(existingInput);
-                Debug.Log($"Cleaned {inputObjName} object.");
-            }
-
-            if (existingProxy != null)
-            {
-                DestroyImmediate(existingProxy);
-                Debug.Log($"Cleaned {proxyObjName} object.");
+                DestroyImmediate(existingHapticTool);
+                Debug.Log($"Cleaned {hapticInterfaceObjName} object and all its children.");
             }
 
             // Clear references
+            hapticToolObj = null;
             inputObj = null;
             proxyObj = null;
-
-            // Update solver references if mesh object exists
-            if (meshObj != null)
-            {
-                NamakoSolver solver = meshObj.GetComponent<NamakoSolver>();
-                if (solver != null)
-                {
-                    solver.proxyObj = null;
-                    solver.inputObj = null;
-                }
-            }
         }
 
         void DrawHapticObjectsInfo()
@@ -150,38 +176,35 @@ namespace Namako
             EditorGUILayout.BeginVertical(EditorStyles.helpBox);
 
             // Check current status
-            GameObject currentInput = GameObject.Find(inputObjName);
-            GameObject currentProxy = GameObject.Find(proxyObjName);
-            GameObject currentMesh = GameObject.Find(meshObjName);
+            GameObject currentHapticTool = GameObject.Find(hapticInterfaceObjName);
+            GameObject currentInput = null;
+            GameObject currentProxy = null;
+
+            if (currentHapticTool != null)
+            {
+                Transform inputTransform = currentHapticTool.transform.Find(inputObjName);
+                Transform proxyTransform = currentHapticTool.transform.Find(proxyObjName);
+                currentInput = inputTransform != null ? inputTransform.gameObject : null;
+                currentProxy = proxyTransform != null ? proxyTransform.gameObject : null;
+            }
 
             EditorGUILayout.BeginHorizontal();
-            EditorGUILayout.LabelField("Input Object:", GUILayout.Width(100));
+            EditorGUILayout.LabelField("HapticInterfaceObject:", GUILayout.Width(140));
+            EditorGUILayout.LabelField(currentHapticTool != null ? "✓ Present" : "✗ Missing", 
+                currentHapticTool != null ? EditorStyles.miniLabel : EditorStyles.centeredGreyMiniLabel);
+            EditorGUILayout.EndHorizontal();
+
+            EditorGUILayout.BeginHorizontal();
+            EditorGUILayout.LabelField("Input Object:", GUILayout.Width(140));
             EditorGUILayout.LabelField(currentInput != null ? "✓ Present" : "✗ Missing", 
                 currentInput != null ? EditorStyles.miniLabel : EditorStyles.centeredGreyMiniLabel);
             EditorGUILayout.EndHorizontal();
 
             EditorGUILayout.BeginHorizontal();
-            EditorGUILayout.LabelField("Proxy Object:", GUILayout.Width(100));
+            EditorGUILayout.LabelField("Proxy Object:", GUILayout.Width(140));
             EditorGUILayout.LabelField(currentProxy != null ? "✓ Present" : "✗ Missing",
                 currentProxy != null ? EditorStyles.miniLabel : EditorStyles.centeredGreyMiniLabel);
             EditorGUILayout.EndHorizontal();
-
-            EditorGUILayout.BeginHorizontal();
-            EditorGUILayout.LabelField("Mesh Object:", GUILayout.Width(100));
-            EditorGUILayout.LabelField(currentMesh != null ? "✓ Present" : "✗ Missing",
-                currentMesh != null ? EditorStyles.miniLabel : EditorStyles.centeredGreyMiniLabel);
-            EditorGUILayout.EndHorizontal();
-
-            if (currentMesh != null)
-            {
-                NamakoSolver solver = currentMesh.GetComponent<NamakoSolver>();
-                EditorGUILayout.BeginHorizontal();
-                EditorGUILayout.LabelField("Solver Link:", GUILayout.Width(100));
-                bool solverLinked = solver != null && solver.proxyObj != null && solver.inputObj != null;
-                EditorGUILayout.LabelField(solverLinked ? "✓ Linked" : "✗ Not Linked",
-                    solverLinked ? EditorStyles.miniLabel : EditorStyles.centeredGreyMiniLabel);
-                EditorGUILayout.EndHorizontal();
-            }
 
             EditorGUILayout.EndVertical();
         }

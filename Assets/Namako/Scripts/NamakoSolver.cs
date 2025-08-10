@@ -51,13 +51,7 @@ namespace Namako
 
         [Tooltip("FEMに埋め込む描画用オブジェクト"), Header("Input Objects")]
         public GameObject visualObj;
-        [Tooltip("描画用剛体オブジェクト")]
-        public GameObject proxyObj;
-        [Tooltip("剛体位置入力用オブジェクト")]
-        public GameObject inputObj;
-        [Tooltip("剛体半径"), Range(0.001f, 0.1f), Header("Simulation Parameters")]
-        public float HIPRad = 0.03f;
-        [Tooltip("ヤング率 [kPa]"), Range(0.0f, 10.0f)]
+        [Tooltip("ヤング率 [kPa]"), Range(0.0f, 10.0f), Header("Simulation Parameters")]
         public float youngsModulusKPa = 0.6f;
         [Tooltip("ポアソン比"), Range(0.0f, 0.49f)]
         public float poisson = 0.4f;
@@ -69,16 +63,10 @@ namespace Namako
         public float damping_beta = 0.1f;
         [Tooltip("疑似摩擦係数（0-1）"), Range(0, 1)]
         public float friction = 0.2f;
-        [Tooltip("固定高さ（底面から, 0-1）"), Range(0, 1)]
-        public float fixHeight = 0.01f;
-        [Tooltip("バーチャルカップリングのばね定数"), Range(0.0f, 1000.0f)]
-        public float VCStiffness = 300.0f;
         [Tooltip("グローバルダンピング係数"), Range(0.0f, 1.0f)]
         public float globalDamping = 0.0f;
         [Tooltip("柔軟物体にかかる重力")]
         public Vector3 gravityFEM = Vector3.zero;
-        [Tooltip("剛体にかかる重力")]
-        public Vector3 gravityRb = Vector3.zero;
         public enum CollisionDetectionType
         {
             // from namako.h
@@ -89,13 +77,6 @@ namespace Namako
 
         [Tooltip("実行開始時に自動的にFEMを開始する"), Header("FEM Control")]
         public bool autoStartFEM = true;
-
-        [Tooltip("力覚提示を有効にする"), Header("Haptics")]
-        public bool hapticEnabled = true;
-        [Tooltip("床に触れるようにする")]
-        public bool floorEnabled = true;
-        [Tooltip("力覚提示を開始するまでの猶予時間[s]")]
-        public float waitTime = 0.5f;
 
         private float time = 0.0f;
         private IntPtr vmesh_pos_cpp;
@@ -141,6 +122,32 @@ namespace Namako
 
             // NamakoSolverを追加
             return targetGameObject.AddComponent<NamakoSolver>();
+        }
+#endif
+
+#if UNITY_EDITOR
+        public Vector3 GetForce()
+        {
+            IntPtr ptr = Marshal.AllocHGlobal(3 * sizeof(float));
+            var arr = new float[3];
+            NamakoNative.GetDisplayingForce(ptr);
+            Marshal.Copy(ptr, arr, 0, 3);
+            Marshal.FreeHGlobal(ptr);
+            return new Vector3(arr[0], arr[1], arr[2]);
+        }
+
+        public Vector3 GetNormal()
+        {
+            IntPtr ptr = Marshal.AllocHGlobal(3 * sizeof(float));
+            var arr = new float[3];
+            NamakoNative.GetContactNormal(ptr);
+            Marshal.Copy(ptr, arr, 0, 3);
+            Marshal.FreeHGlobal(ptr);
+            return new Vector3(arr[0], arr[1], arr[2]);
+        }
+        public bool IsContact()
+        {
+            return NamakoNative.IsContactC();
         }
 #endif
 
@@ -254,8 +261,25 @@ namespace Namako
             
             if (isFEMStarted) return;
 
-            // FEM setup
-            NamakoNative.SetupFEM(HIPRad, youngsModulusKPa, poisson, density, damping_alpha, damping_beta,
+            // FEM setup - Get HIP radius from NamakoHaptics component or use default
+            float hipRadius = 0.03f; // Default value
+            
+            // Try to find NamakoHaptics component in the scene
+            var namakoHapticsObjects = FindObjectsOfType<MonoBehaviour>();
+            foreach (var obj in namakoHapticsObjects)
+            {
+                if (obj.GetType().Name == "NamakoHaptics")
+                {
+                    var hipRadProperty = obj.GetType().GetMethod("GetHIPRadius");
+                    if (hipRadProperty != null)
+                    {
+                        hipRadius = (float)hipRadProperty.Invoke(obj, null);
+                        break;
+                    }
+                }
+            }
+
+            NamakoNative.SetupFEM(hipRadius, youngsModulusKPa, poisson, density, damping_alpha, damping_beta,
                 fem_pos_cpp, num_nodes, fem_tet_cpp, num_tets, (int)collisionDetectionType);
 
             // Setup visual mesh if available
@@ -310,52 +334,10 @@ namespace Namako
             }
 
 
-            if (time < waitTime)
-            {
-                NamakoNative.SetHapticEnabled(false);
-            }
-            else
-            {
-                NamakoNative.SetHapticEnabled(hapticEnabled);
-            }
-
-            // Set handle offset
-            Vector3 handleOffset = inputObj.transform.position;
-            NamakoNative.SetHandleOffset(handleOffset.x, handleOffset.y, handleOffset.z);
-
-            // Rigid body
-            {
-                // Position
-                IntPtr p_cpp = Marshal.AllocHGlobal(3 * sizeof(float));
-                NamakoNative.GetRBPos(p_cpp);
-                float[] p = new float[3];
-                Vector3 pVec;
-                Marshal.Copy(p_cpp, p, 0, 3);
-                pVec.x = p[0];
-                pVec.y = p[1];
-                pVec.z = p[2];
-                if (!float.IsNaN(pVec.magnitude))
-                {
-                    proxyObj.transform.position = pVec;
-                }
-                Marshal.FreeHGlobal(p_cpp);
-                // Rotation
-                IntPtr q_cpp = Marshal.AllocHGlobal(4 * sizeof(float));
-                NamakoNative.GetRotationXYZW(q_cpp);
-                float[] q = new float[4];
-                Marshal.Copy(q_cpp, q, 0, 4);
-                proxyObj.transform.rotation = new Quaternion(q[0], q[1], q[2], q[3]);
-                Marshal.FreeHGlobal(q_cpp);
-                // Misc
-                NamakoNative.SetGravityRb(gravityRb.x, gravityRb.y, gravityRb.z);
-            }
-
-            // Change haptic properties
+            // Change FEM properties
             NamakoNative.ScaleStiffness(youngsModulusKPa);
             NamakoNative.SetFriction(friction);
-            NamakoNative.SetVCStiffness(VCStiffness);
             NamakoNative.SetGlobalDamping(globalDamping);
-            NamakoNative.SetFloorHapticsEnabled(floorEnabled);
 
             // Apply boundary conditions
             ApplyBoundaryConditions();
@@ -420,30 +402,6 @@ namespace Namako
             {
                 NamakoNative.Terminate();
             }
-        }
-
-        public Vector3 GetForce()
-        {
-            IntPtr ptr = Marshal.AllocHGlobal(3 * sizeof(float));
-            var arr = new float[3];
-            NamakoNative.GetDisplayingForce(ptr);
-            Marshal.Copy(ptr, arr, 0, 3);
-            Marshal.FreeHGlobal(ptr);
-            return new Vector3(arr[0], arr[1], arr[2]);
-        }
-
-        public Vector3 GetNormal()
-        {
-            IntPtr ptr = Marshal.AllocHGlobal(3 * sizeof(float));
-            var arr = new float[3];
-            NamakoNative.GetContactNormal(ptr);
-            Marshal.Copy(ptr, arr, 0, 3);
-            Marshal.FreeHGlobal(ptr);
-            return new Vector3(arr[0], arr[1], arr[2]);
-        }
-        public bool IsContact()
-        {
-            return NamakoNative.IsContactC();
         }
 
         public bool IsInitialized => isInitialized;
