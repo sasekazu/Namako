@@ -152,5 +152,12 @@ namespace Namako
         [DllImport("namako")]
         public static extern void ReleaseWithRigidBody(
             [MarshalAs(UnmanagedType.LPStr)] string name);
+
+        // 無限平面管理
+        [DllImport("namako")]
+        public static extern void AddInfinitePlane(IntPtr pos, IntPtr normal);
+
+        [DllImport("namako")]
+        public static extern void ClearInfinitePlanes();
     }
 }

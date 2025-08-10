@@ -65,6 +65,11 @@ namespace Namako
         [Tooltip("実行開始時に自動的にFEMを開始する"), Header("FEM Control")]
         public bool autoStartFEM = true;
 
+        [Tooltip("無限平面を有効にする"), Header("Infinite Plane")]
+        public bool enableInfinitePlane = false;
+        [Tooltip("無限平面のY座標")]
+        public float infinitePlaneY = 0.0f;
+
         private float time = 0.0f;
         private IntPtr vmesh_pos_cpp;
         private IntPtr vmesh_indices_cpp;
@@ -345,6 +350,9 @@ namespace Namako
             // Update contact rigid body positions
             UpdateContactRigidBodyPositions();
 
+            // Update infinite plane
+            UpdateInfinitePlane();
+
             if(visualObj != null)
             {
                 // Get vertices of visual mesh
@@ -445,6 +453,42 @@ namespace Namako
                 if (namakoRigidBodies[i] != null)
                 {
                     namakoRigidBodies[i].UpdatePositionInNative();
+                }
+            }
+        }
+
+        /// <summary>
+        /// 無限平面を更新
+        /// </summary>
+        private void UpdateInfinitePlane()
+        {
+            if (!isFEMStarted)
+                return;
+
+            // 毎回クリア
+            NamakoNative.ClearInfinitePlanes();
+
+            // 有効な場合のみ追加
+            if (enableInfinitePlane)
+            {
+                // 平面の位置 (0, y, 0)
+                float[] planePos = new float[] { 0.0f, infinitePlaneY, 0.0f };
+                // 平面の法線 (0, 1, 0) - 上向き
+                float[] planeNormal = new float[] { 0.0f, 1.0f, 0.0f };
+
+                IntPtr posPtr = Marshal.AllocHGlobal(3 * sizeof(float));
+                IntPtr normalPtr = Marshal.AllocHGlobal(3 * sizeof(float));
+
+                try
+                {
+                    Marshal.Copy(planePos, 0, posPtr, 3);
+                    Marshal.Copy(planeNormal, 0, normalPtr, 3);
+                    NamakoNative.AddInfinitePlane(posPtr, normalPtr);
+                }
+                finally
+                {
+                    Marshal.FreeHGlobal(posPtr);
+                    Marshal.FreeHGlobal(normalPtr);
                 }
             }
         }
