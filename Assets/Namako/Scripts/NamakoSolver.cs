@@ -262,8 +262,8 @@ namespace Namako
             if (isFEMStarted) return;
 
             // FEM setup - Get HIP radius from NamakoHaptics component or use default
-            float hipRadius = 0.03f; // Default value
-            
+            float hipRadius = 0.0f; // When hipRadius is zero, Haptics will not be generated
+
             // Try to find NamakoHaptics component in the scene
             var namakoHapticsObjects = FindObjectsOfType<MonoBehaviour>();
             foreach (var obj in namakoHapticsObjects)
