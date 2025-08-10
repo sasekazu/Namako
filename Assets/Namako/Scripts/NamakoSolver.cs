@@ -30,7 +30,7 @@ using System.Linq;
 namespace Namako
 {
 
-    [RequireComponent(typeof(TetContainer))]
+    [RequireComponent(typeof(NamakoTetraMesh))]
     [DisallowMultipleComponent]
     [AddComponentMenu("")]  // コンポーネントメニューから削除
     public class NamakoSolver : MonoBehaviour
@@ -87,7 +87,7 @@ namespace Namako
         private IntPtr fem_tet_cpp;
 
         private MeshExtractor extractor = null;
-        private TetContainer tetContainer;
+        private NamakoTetraMesh tetraMesh;
 
         private Queue<float> calcTime;
         private bool isInitialized = false;
@@ -181,7 +181,7 @@ namespace Namako
         {
             if (isInitialized) return;
 
-            tetContainer = GetComponent<TetContainer>();
+            tetraMesh = GetComponent<NamakoTetraMesh>();
 
             // Initialize wireframe renderer
             GameObject wireframeObj = GameObject.Find("tetras_wireframe");
@@ -191,7 +191,7 @@ namespace Namako
             }
 
             // Prepare fem_pos_cpp
-            Vector3[] posw = tetContainer.GetNodePosW();
+            Vector3[] posw = tetraMesh.GetNodePosW();
             num_nodes = posw.Length;
             fem_pos = new float[3 * num_nodes];
             Vector3 s = transform.localScale;
@@ -206,9 +206,9 @@ namespace Namako
             Marshal.Copy(fem_pos, 0, fem_pos_cpp, 3 * num_nodes);
 
             // Prepare fem_indices_cpp
-            num_tets = tetContainer.Tets;
+            num_tets = tetraMesh.Tets;
             int[] fem_tet = new int[4 * num_tets];
-            System.Array.Copy(tetContainer.Tet, fem_tet, 4 * num_tets);
+            System.Array.Copy(tetraMesh.Tet, fem_tet, 4 * num_tets);
             fem_tet_cpp = Marshal.AllocHGlobal(4 * num_tets * sizeof(int));
             Marshal.Copy(fem_tet, 0, fem_tet_cpp, 4 * num_tets);
 
@@ -235,14 +235,14 @@ namespace Namako
                 vmesh_pos_cpp = IntPtr.Zero;
             }
 
-            nodeObj = tetContainer.NodeObj;
+            nodeObj = tetraMesh.NodeObj;
             calcTime = new Queue<float>();
 
             // Initialize wireframe renderer with tet data
             if (wireframeRenderer != null)
             {
-                int[] tetIndices = tetContainer.Tet;
-                int tetCount = tetContainer.Tets;
+                int[] tetIndices = tetraMesh.Tet;
+                int tetCount = tetraMesh.Tets;
                 wireframeRenderer.Initialize(nodeObj, tetIndices, tetCount);
             }
 

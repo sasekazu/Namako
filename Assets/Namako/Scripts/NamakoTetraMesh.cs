@@ -8,7 +8,7 @@ namespace Namako
 
 
     [ExecuteInEditMode]
-    public class TetContainer : MonoBehaviour
+    public class NamakoTetraMesh : MonoBehaviour
     {
 
         public bool drawWireframe = false;

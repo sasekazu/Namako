@@ -24,7 +24,7 @@ namespace Namako
         private GameObject nodeRootObj;
         private GameObject[] nodeObj;
         private GameObject tetObj;
-        private string meshObjName = "TetMesh";
+        private string meshObjName = "TetraMesh";
         private string surfaceMeshObjName = "SurfaceMesh";
         public const float r = 0.005f;
         private TextAsset jsonAsset;
@@ -280,11 +280,11 @@ namespace Namako
         {
             SaveMeshJSON();
 
-            // TetContainerを追加
-            TetContainer tetContainer = meshObj.GetComponent<TetContainer>();
+            // NamakoTetraMeshを追加
+            NamakoTetraMesh tetContainer = meshObj.GetComponent<NamakoTetraMesh>();
             if (tetContainer == null)
             {
-                tetContainer = meshObj.AddComponent<TetContainer>();
+                tetContainer = meshObj.AddComponent<NamakoTetraMesh>();
             }
             tetContainer.meshJsonAsset = jsonAsset;
             tetContainer.tetraScale = tetraScale;
