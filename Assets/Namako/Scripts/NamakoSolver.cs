@@ -30,7 +30,6 @@ using System.Linq;
 namespace Namako
 {
 
-    [RequireComponent(typeof(NamakoTetraMesh))]
     [DisallowMultipleComponent]
     [AddComponentMenu("")]  // コンポーネントメニューから削除
     public class NamakoSolver : MonoBehaviour
@@ -51,22 +50,10 @@ namespace Namako
 
         [Tooltip("FEMに埋め込む描画用オブジェクト"), Header("Input Objects")]
         public GameObject visualObj;
-        [Tooltip("ヤング率 [kPa]"), Range(0.0f, 10.0f), Header("Simulation Parameters")]
-        public float youngsModulusKPa = 0.6f;
-        [Tooltip("ポアソン比"), Range(0.0f, 0.49f)]
-        public float poisson = 0.4f;
-        [Tooltip("密度"), Range(0.0f, 2000.0f)]
-        public float density = 1000.0f;
-        [Tooltip("ダンパ係数α"), Range(0.0f, 1.0f)]
-        public float damping_alpha = 0.0f;
-        [Tooltip("ダンパ係数β"), Range(0.0f, 1.0f)]
-        public float damping_beta = 0.1f;
-        [Tooltip("疑似摩擦係数（0-1）"), Range(0, 1)]
-        public float friction = 0.2f;
-        [Tooltip("グローバルダンピング係数"), Range(0.0f, 1.0f)]
-        public float globalDamping = 0.0f;
-        [Tooltip("柔軟物体にかかる重力")]
-        public Vector3 gravityFEM = Vector3.zero;
+        [Tooltip("NamakoTetraMeshコンポーネントを持つGameObject")]
+        public GameObject tetraMeshGameObject;
+        [Tooltip("NamakoHapticsコンポーネントを持つGameObject")]
+        public GameObject hapticsObject;
         public enum CollisionDetectionType
         {
             // from namako.h
@@ -181,7 +168,19 @@ namespace Namako
         {
             if (isInitialized) return;
 
-            tetraMesh = GetComponent<NamakoTetraMesh>();
+            // tetraMeshGameObjectからNamakoTetraMeshコンポーネントを取得
+            if (tetraMeshGameObject == null)
+            {
+                Debug.LogError("tetraMeshGameObjectが設定されていません。");
+                return;
+            }
+            
+            tetraMesh = tetraMeshGameObject.GetComponent<NamakoTetraMesh>();
+            if (tetraMesh == null)
+            {
+                Debug.LogError("指定されたGameObjectにNamakoTetraMeshコンポーネントが見つかりません。");
+                return;
+            }
 
             // Initialize wireframe renderer
             GameObject wireframeObj = GameObject.Find("tetras_wireframe");
@@ -264,22 +263,22 @@ namespace Namako
             // FEM setup - Get HIP radius from NamakoHaptics component or use default
             float hipRadius = 0.0f; // When hipRadius is zero, Haptics will not be generated
 
-            // Try to find NamakoHaptics component in the scene
-            var namakoHapticsObjects = FindObjectsOfType<MonoBehaviour>();
-            foreach (var obj in namakoHapticsObjects)
+            // Get HIP radius from hapticsObject if specified
+            if (hapticsObject != null)
             {
-                if (obj.GetType().Name == "NamakoHaptics")
+                var hapticsComponent = hapticsObject.GetComponent<MonoBehaviour>();
+                if (hapticsComponent != null && hapticsComponent.GetType().Name == "NamakoHaptics")
                 {
-                    var hipRadProperty = obj.GetType().GetMethod("GetHIPRadius");
+                    var hipRadProperty = hapticsComponent.GetType().GetMethod("GetHIPRadius");
                     if (hipRadProperty != null)
                     {
-                        hipRadius = (float)hipRadProperty.Invoke(obj, null);
-                        break;
+                        hipRadius = (float)hipRadProperty.Invoke(hapticsComponent, null);
                     }
                 }
             }
 
-            NamakoNative.SetupFEM(hipRadius, youngsModulusKPa, poisson, density, damping_alpha, damping_beta,
+            NamakoNative.SetupFEM(hipRadius, tetraMesh.youngsModulusKPa, tetraMesh.poisson, tetraMesh.density, 
+                tetraMesh.damping_alpha, tetraMesh.damping_beta,
                 fem_pos_cpp, num_nodes, fem_tet_cpp, num_tets, (int)collisionDetectionType);
 
             // Setup visual mesh if available
@@ -335,13 +334,13 @@ namespace Namako
 
 
             // Change FEM properties
-            NamakoNative.ScaleStiffness(youngsModulusKPa);
-            NamakoNative.SetFriction(friction);
-            NamakoNative.SetGlobalDamping(globalDamping);
+            NamakoNative.ScaleStiffness(tetraMesh.youngsModulusKPa);
+            NamakoNative.SetFriction(tetraMesh.friction);
+            NamakoNative.SetGlobalDamping(tetraMesh.globalDamping);
 
             // Apply boundary conditions
             ApplyBoundaryConditions();
-            NamakoNative.SetGravity(gravityFEM.x, gravityFEM.y, gravityFEM.z);
+            NamakoNative.SetGravity(tetraMesh.gravityFEM.x, tetraMesh.gravityFEM.y, tetraMesh.gravityFEM.z);
 
             // Update contact rigid body positions
             UpdateContactRigidBodyPositions();

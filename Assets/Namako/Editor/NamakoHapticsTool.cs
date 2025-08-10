@@ -151,6 +151,9 @@ namespace Namako
                 }
             }
 
+            // Find or create NamakoSolver and link it to the haptic object
+            LinkToNamakoSolver();
+
             Debug.Log("Haptic interface generated successfully.");
         }
 
@@ -169,6 +172,76 @@ namespace Namako
             hapticToolObj = null;
             inputObj = null;
             proxyObj = null;
+        }
+
+        void LinkToNamakoSolver()
+        {
+            // Find existing NamakoSolver in the scene
+            GameObject solverObj = GameObject.Find("SolverObject");
+            Component namakoSolver = null;
+
+            if (solverObj != null)
+            {
+                // Try to get NamakoSolver component
+                namakoSolver = solverObj.GetComponent(System.Type.GetType("Namako.NamakoSolver, Assembly-CSharp"));
+            }
+
+            // If no SolverObject or NamakoSolver found, create one
+            if (solverObj == null || namakoSolver == null)
+            {
+                if (solverObj == null)
+                {
+                    solverObj = new GameObject("SolverObject");
+                    Debug.Log("Created new SolverObject.");
+                }
+
+                // Try to add NamakoSolver component
+                var solverType = System.Type.GetType("Namako.NamakoSolver, Assembly-CSharp");
+                if (solverType != null)
+                {
+                    // Use CreateFromTool method if available
+                    var createFromToolMethod = solverType.GetMethod("CreateFromTool", 
+                        System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.Public);
+                    
+                    if (createFromToolMethod != null)
+                    {
+                        namakoSolver = createFromToolMethod.Invoke(null, new object[] { solverObj }) as Component;
+                        if (namakoSolver != null)
+                        {
+                            Debug.Log("NamakoSolver created using CreateFromTool method.");
+                        }
+                    }
+                    else
+                    {
+                        // Fallback: direct component addition
+                        namakoSolver = solverObj.AddComponent(solverType);
+                        Debug.Log("NamakoSolver added directly as component.");
+                    }
+                }
+                else
+                {
+                    Debug.LogError("NamakoSolver type not found. Cannot create solver.");
+                    return;
+                }
+            }
+
+            // Link haptic object to NamakoSolver
+            if (namakoSolver != null && hapticToolObj != null)
+            {
+                SerializedObject serializedSolver = new SerializedObject(namakoSolver);
+                SerializedProperty hapticsObjectProperty = serializedSolver.FindProperty("hapticsObject");
+                
+                if (hapticsObjectProperty != null)
+                {
+                    hapticsObjectProperty.objectReferenceValue = hapticToolObj;
+                    serializedSolver.ApplyModifiedProperties();
+                    Debug.Log($"Linked {hapticInterfaceObjName} to NamakoSolver's hapticsObject field.");
+                }
+                else
+                {
+                    Debug.LogWarning("hapticsObject property not found in NamakoSolver.");
+                }
+            }
         }
 
         void DrawHapticObjectsInfo()

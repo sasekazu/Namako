@@ -289,20 +289,45 @@ namespace Namako
             tetContainer.meshJsonAsset = jsonAsset;
             tetContainer.tetraScale = tetraScale;
             
-            // NamakoSolverを安全に作成
-            NamakoSolver solver = NamakoSolver.CreateFromTool(meshObj);
+            // 既存のSolverObjectを検索
+            GameObject solverObj = GameObject.Find("SolverObject");
+            NamakoSolver solver = null;
+            
+            if (solverObj != null)
+            {
+                solver = solverObj.GetComponent<NamakoSolver>();
+            }
+            
+            // NamakoSolverが存在しない場合のみ作成
             if (solver == null)
             {
-                Debug.LogError("NamakoSolverの作成に失敗しました。シーンに既に存在する可能性があります。");
-                return;
+                if (solverObj == null)
+                {
+                    solverObj = new GameObject("SolverObject");
+                }
+                
+                solver = NamakoSolver.CreateFromTool(solverObj);
+                if (solver == null)
+                {
+                    Debug.LogError("NamakoSolverの作成に失敗しました。シーンに既に存在する可能性があります。");
+                    return;
+                }
+                Debug.Log("新しいNamakoSolverが作成されました。");
+            }
+            else
+            {
+                Debug.Log("既存のNamakoSolverを使用します。");
             }
 
-            Debug.Log("NamakoSolverが正常に作成されました。");
+            // SolverにTetraMeshオブジェクトを設定
+            solver.tetraMeshGameObject = meshObj;
 
             if (visObj)
             {
                 solver.visualObj = visObj;
             }
+            
+            Debug.Log("NamakoSolverの設定が完了しました。");
         }
 
         void GenerateMesh()
