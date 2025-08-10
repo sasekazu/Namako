@@ -363,7 +363,7 @@ namespace Namako
                 nodeObj[i].GetComponent<MeshRenderer>().enabled = true;
                 
                 // 境界条件をチェックして、固定ノードの場合は位置を更新しない
-                NodeBoundaryCondition boundaryCondition = nodeObj[i].GetComponent<NodeBoundaryCondition>();
+                NamakoNode boundaryCondition = nodeObj[i].GetComponent<NamakoNode>();
                 bool isNodeFixed = boundaryCondition != null && boundaryCondition.isFixed;
                 
                 if (!isNodeFixed)
@@ -464,7 +464,7 @@ namespace Namako
             {
                 if (nodeObj[i] == null) continue;
                 
-                NodeBoundaryCondition boundaryCondition = nodeObj[i].GetComponent<NodeBoundaryCondition>();
+                NamakoNode boundaryCondition = nodeObj[i].GetComponent<NamakoNode>();
                 if (boundaryCondition != null && boundaryCondition.isFixed)
                 {
                     // GameObjectの名前からノードIDを抽出

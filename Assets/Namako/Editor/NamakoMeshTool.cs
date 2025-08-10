@@ -359,11 +359,32 @@ namespace Namako
                     Debug.LogError("NamakoSolverの作成に失敗しました。シーンに既に存在する可能性があります。");
                     return;
                 }
+                
                 Debug.Log("新しいNamakoSolverが作成されました。");
             }
             else
             {
                 Debug.Log("既存のNamakoSolverを使用します。");
+            }
+
+            // NamakoStressVisualizerを自動的にアタッチ（新規・既存どちらの場合も）
+            var stressVisualizer = solverObj.GetComponent<NamakoStressVisualizer>();
+            if (stressVisualizer == null)
+            {
+                Type stressVisualizerType = Type.GetType("Namako.NamakoStressVisualizer, Assembly-CSharp");
+                if (stressVisualizerType != null)
+                {
+                    stressVisualizer = solverObj.AddComponent(stressVisualizerType) as NamakoStressVisualizer;
+                    Debug.Log("NamakoStressVisualizerが自動的にアタッチされました。");
+                }
+                else
+                {
+                    Debug.LogWarning("NamakoStressVisualizerクラスが見つかりません。");
+                }
+            }
+            else
+            {
+                Debug.Log("NamakoStressVisualizerは既にアタッチされています。");
             }
 
             // SolverにTetraMeshオブジェクトを設定
@@ -551,7 +572,7 @@ namespace Namako
                 nodeObj[j].transform.localPosition = new Vector3(pos[3 * j + 0], pos[3 * j + 1], pos[3 * j + 2]);
                 
                 // 境界条件コンポーネントを追加
-                Type boundaryConditionType = Type.GetType("Namako.NodeBoundaryCondition, Assembly-CSharp");
+                Type boundaryConditionType = Type.GetType("Namako.NamakoNode, Assembly-CSharp");
                 if (boundaryConditionType != null)
                 {
                     var boundaryCondition = nodeObj[j].AddComponent(boundaryConditionType);
@@ -689,10 +710,10 @@ namespace Namako
                 return;
             }
 
-            Type boundaryConditionType = Type.GetType("Namako.NodeBoundaryCondition, Assembly-CSharp");
+            Type boundaryConditionType = Type.GetType("Namako.NamakoNode, Assembly-CSharp");
             if (boundaryConditionType == null)
             {
-                Debug.LogError("NodeBoundaryConditionクラスが見つかりません。");
+                Debug.LogError("NamakoNodeクラスが見つかりません。");
                 return;
             }
 
@@ -1035,7 +1056,7 @@ namespace Namako
         {
             if (nodeObj == null || nodeObj.Length == 0) return -1;
             
-            Type boundaryConditionType = Type.GetType("Namako.NodeBoundaryCondition, Assembly-CSharp");
+            Type boundaryConditionType = Type.GetType("Namako.NamakoNode, Assembly-CSharp");
             if (boundaryConditionType == null) return -1;
             
             int count = 0;

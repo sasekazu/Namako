@@ -8,8 +8,10 @@ namespace Namako
 {
     /// <summary>
     /// FEMシミュレーションの応力可視化を行うコンポーネント
+    /// NamakoSolverと同じGameObjectにアタッチして使用する
     /// </summary>
-    public class StressVisualizer : MonoBehaviour
+    [RequireComponent(typeof(NamakoSolver))]
+    public class NamakoStressVisualizer : MonoBehaviour
     {
         [Header("Stress Visualization Settings")]
         [Tooltip("Enable stress visualization")]
@@ -32,11 +34,12 @@ namespace Namako
 
         void Start()
         {
-            namakoSolver = FindObjectOfType<NamakoSolver>();
+            // 同じGameObjectのNamakoSolverを取得
+            namakoSolver = GetComponent<NamakoSolver>();
             
             if (namakoSolver == null)
             {
-                Debug.LogError("StressVisualizer: No NamakoSolver found in the scene");
+                Debug.LogError("StressVisualizer: NamakoSolver component not found on the same GameObject. Please attach StressVisualizer to the same GameObject as NamakoSolver.");
                 enableVisualization = false;
                 return;
             }

@@ -5,7 +5,7 @@ namespace Namako
     /// <summary>
     /// ノードの境界条件を設定するコンポーネント
     /// </summary>
-    public class NodeBoundaryCondition : MonoBehaviour
+    public class NamakoNode : MonoBehaviour
     {
         [Header("Boundary Condition Settings")]
         [Tooltip("このノードを固定するかどうか")]
