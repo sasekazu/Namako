@@ -24,11 +24,7 @@ namespace Namako
         private GameObject nodeRootObj;
         private GameObject[] nodeObj;
         private GameObject tetObj;
-        private GameObject proxyObj;
-        private GameObject inputObj;
         private string meshObjName = "TetMesh";
-        private string proxyObjName = "Proxy";
-        private string inputObjName = "Input";
         private string surfaceMeshObjName = "SurfaceMesh";
         public const float r = 0.005f;
         private TextAsset jsonAsset;
@@ -77,7 +73,7 @@ namespace Namako
             {
                 if(visObj)
                 {
-                    Clean();
+                    CleanMesh();
                     InitMesh();
                     GenerateMesh();
                     SetupSolver();
@@ -109,7 +105,7 @@ namespace Namako
             {
                 if(textAsset)
                 {
-                    Clean();
+                    CleanMesh();
                     InitMesh();
                     LoadMesh();
                     SetupSolver();
@@ -220,13 +216,13 @@ namespace Namako
             DrawSectionHeader("Utilities", "Clean up and maintenance");
             EditorGUI.indentLevel++;
             GUI.backgroundColor = new Color(1.0f, 0.6f, 0.6f);
-            if (GUILayout.Button("Clean All", GUILayout.Height(30)))
+            if (GUILayout.Button("Clean Mesh", GUILayout.Height(30)))
             {
                 if (EditorUtility.DisplayDialog("Confirm Clean", 
                     "Are you sure you want to clean all generated mesh objects and files? This action cannot be undone.", 
                     "Yes", "Cancel"))
                 {
-                    Clean();
+                    CleanMesh();
                 }
             }
             GUI.backgroundColor = Color.white;
@@ -237,11 +233,9 @@ namespace Namako
             EditorGUILayout.EndScrollView();
         }
 
-        void Clean()
+        void CleanMesh()
         {
             DestroyImmediate(GameObject.Find(meshObjName));
-            DestroyImmediate(GameObject.Find(inputObjName));
-            DestroyImmediate(GameObject.Find(proxyObjName));
             DestroyImmediate(GameObject.Find(surfaceMeshObjName));
             DestroyImmediate(GameObject.Find("tetras_wireframe"));
             AssetDatabase.DeleteAsset(savePath);
@@ -305,15 +299,6 @@ namespace Namako
 
             Debug.Log("NamakoSolverが正常に作成されました。");
 
-            // Generate Input and Proxy objects
-            inputObj = new GameObject(inputObjName);
-            inputObj.transform.SetPositionAndRotation(new Vector3(0.0f, 0.2f, 0.0f), Quaternion.identity);
-            proxyObj = GameObject.CreatePrimitive(PrimitiveType.Sphere);
-            proxyObj.name = proxyObjName;
-            proxyObj.transform.localScale = Vector3.one * solver.HIPRad * 2.0f;
-            proxyObj.transform.SetPositionAndRotation(inputObj.transform.position, Quaternion.identity);
-            solver.proxyObj = proxyObj;
-            solver.inputObj = inputObj;
             if (visObj)
             {
                 solver.visualObj = visObj;
