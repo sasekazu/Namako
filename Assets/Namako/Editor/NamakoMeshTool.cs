@@ -94,11 +94,11 @@ namespace Namako
 
             textAsset = EditorGUILayout.ObjectField("Mesh Source (TextAsset)", textAsset, typeof(UnityEngine.Object), true) as TextAsset;
             
-            EditorGUILayout.BeginHorizontal();
-            zupToyup = EditorGUILayout.ToggleLeft("Invert X", zupToyup, GUILayout.Width(80));
-            scaleTo20cm = EditorGUILayout.ToggleLeft("Scale to 10-cm box", scaleTo20cm, GUILayout.Width(120));
+            EditorGUILayout.BeginVertical();
+            zupToyup = EditorGUILayout.ToggleLeft("Z-Up to Y-Up", zupToyup);
+            scaleTo20cm = EditorGUILayout.ToggleLeft("Scale to 10-cm box", scaleTo20cm);
             generateSurfaceMesh = EditorGUILayout.ToggleLeft("Generate Surface Mesh", generateSurfaceMesh);
-            EditorGUILayout.EndHorizontal();
+            EditorGUILayout.EndVertical();
             
             GUI.backgroundColor = Color.cyan;
             if (GUILayout.Button("Load Mesh", GUILayout.Height(30)))
