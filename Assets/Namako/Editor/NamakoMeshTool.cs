@@ -29,7 +29,7 @@ namespace Namako
         public const float r = 0.005f;
         private TextAsset jsonAsset;
         private float tetraScale = 0.9f;
-        private bool invertX = true;
+        private bool zupToyup = true;
         private bool scaleTo20cm = true;
         private bool generateSurfaceMesh = false;
         private string savePath = "";
@@ -95,7 +95,7 @@ namespace Namako
             textAsset = EditorGUILayout.ObjectField("Mesh Source (TextAsset)", textAsset, typeof(UnityEngine.Object), true) as TextAsset;
             
             EditorGUILayout.BeginHorizontal();
-            invertX = EditorGUILayout.ToggleLeft("Invert X", invertX, GUILayout.Width(80));
+            zupToyup = EditorGUILayout.ToggleLeft("Invert X", zupToyup, GUILayout.Width(80));
             scaleTo20cm = EditorGUILayout.ToggleLeft("Scale to 10-cm box", scaleTo20cm, GUILayout.Width(120));
             generateSurfaceMesh = EditorGUILayout.ToggleLeft("Generate Surface Mesh", generateSurfaceMesh);
             EditorGUILayout.EndHorizontal();
@@ -496,12 +496,19 @@ namespace Namako
                 }
             }
 
-            // Invert x coordinages to modify right-hand system to left-hand system (unity coordinate system)
-            if (invertX)
+            // Coordinates transformation to modify z-up right-hand system 
+            // to y-up left-hand system (unity coordinate system)
+            if (zupToyup)
             {
                 for (int j = 0; j < nodes; j++)
                 {
-                    pos[3 * j + 0] *= -1;
+                    // Rot(-90, x) and invert z axis
+                    float x = pos[3 * j + 0];
+                    float y = pos[3 * j + 1];
+                    float z = pos[3 * j + 2];
+                    pos[3 * j + 0] = x;
+                    pos[3 * j + 1] = z;
+                    pos[3 * j + 2] = y;
                 }
                 for (int j = 0; j < tets; ++j)
                 {
