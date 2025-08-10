@@ -36,6 +36,7 @@ namespace Namako
         {
             // Component added in editor
             CheckAndSetCollisionDetectionType();
+            AddNamakoForceVisualizerIfNeeded();
         }
         
         void OnValidate()
@@ -96,6 +97,18 @@ namespace Namako
             else
             {
                 Debug.LogError("[NamakoRigidBody] Could not find collisionDetectionType property in NamakoSolver");
+            }
+        }
+        
+        private void AddNamakoForceVisualizerIfNeeded()
+        {
+            // Check if NamakoForceVisualizer is already attached
+            NamakoForceVisualizer existingVisualizer = GetComponent<NamakoForceVisualizer>();
+            if (existingVisualizer == null)
+            {
+                // Add NamakoForceVisualizer component
+                NamakoForceVisualizer visualizer = gameObject.AddComponent<NamakoForceVisualizer>();
+                Debug.Log($"[NamakoRigidBody] Automatically added NamakoForceVisualizer to {gameObject.name}");
             }
         }
 #endif

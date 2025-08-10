@@ -8,11 +8,11 @@ namespace Namako
     /// <summary>
     /// Simple contact force visualization component
     /// </summary>
-    public class ContactForceVisualizer : MonoBehaviour
+    public class NamakoForceVisualizer : MonoBehaviour
     {
         [Header("Force Visualization Settings")]
         [Tooltip("Enable visualization")]
-        public bool enableVisualization = true;
+        public bool enableVisualization = false;
         
         [Tooltip("Enable individual vertex force visualization")]
         public bool enableVertexForceVisualization = true;
@@ -89,7 +89,7 @@ namespace Namako
             CreateLineRenderers();
             
             isInitialized = true;
-            Debug.Log($"ContactForceVisualizerLite initialized for {gameObject.name} with {targetVertices.Length} vertices");
+            Debug.Log($"NamakoForceVisualizer initialized for {gameObject.name} with {targetVertices.Length} vertices");
         }
 
         /// <summary>
