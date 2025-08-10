@@ -924,8 +924,8 @@ namespace Namako
             wireframeObj.transform.parent = tetObj.transform.parent;
             wireframeObj.transform.localPosition = tetObj.transform.localPosition;
             
-            // Use reflection to add WireframeRenderer component
-            System.Type wireframeType = System.Type.GetType("Namako.WireframeRenderer, Assembly-CSharp");
+            // Use reflection to add NamakoWireframeRenderer component
+            System.Type wireframeType = System.Type.GetType("Namako.NamakoWireframeRenderer, Assembly-CSharp");
             if (wireframeType != null)
             {
                 wireframeRenderer = wireframeObj.AddComponent(wireframeType) as Component;

@@ -88,7 +88,7 @@ namespace Namako
         private int num_tets;
 
         private GameObject[] nodeObj;
-        private WireframeRenderer wireframeRenderer;
+        private NamakoWireframeRenderer wireframeRenderer;
 
         // Contact rigid body management
         private NamakoRigidBody[] namakoRigidBodies; // NamakoRigidBodyコンポーネントを持つ剛体配列
@@ -191,7 +191,7 @@ namespace Namako
             GameObject wireframeObj = GameObject.Find("tetras_wireframe");
             if (wireframeObj != null)
             {
-                wireframeRenderer = wireframeObj.GetComponent<WireframeRenderer>();
+                wireframeRenderer = wireframeObj.GetComponent<NamakoWireframeRenderer>();
             }
 
             // Prepare fem_pos_cpp

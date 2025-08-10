@@ -9,7 +9,7 @@ namespace Namako
         public int[] nodeIndices = new int[4];
     }
 
-    public class WireframeRenderer : MonoBehaviour
+    public class NamakoWireframeRenderer : MonoBehaviour
     {
         [SerializeField] private GameObject[] nodeObjects;
         [SerializeField] private TetraData[] tetraData;
