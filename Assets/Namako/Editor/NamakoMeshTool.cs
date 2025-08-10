@@ -36,7 +36,7 @@ namespace Namako
         private int divisions = 5;
         private bool showBoundaryConditionTools = false;
         private bool showNodes = true;
-        private bool showTetras = true;
+        private bool showTetras = false;
         private bool showWireframe = true;
         private bool showVisualModel = true;
         private Vector2 scrollPosition = Vector2.zero;
@@ -245,6 +245,8 @@ namespace Namako
             CleanGeneratedFiles();
             
             // Reset visibility flags and wireframe reference
+            showNodes = true;
+            showTetras = false;
             showWireframe = true;
             showVisualModel = true;
             wireframeRenderer = null;
@@ -398,9 +400,14 @@ namespace Namako
             // SolverにTetraMeshオブジェクトを設定
             solver.tetraMeshGameObject = meshObj;
 
+            // visObjの設定（LoadMeshの場合はgenerateSurfaceMeshの状態に依存）
             if (visObj)
             {
                 solver.visualObj = visObj;
+            }
+            else
+            {
+                solver.visualObj = null;
             }
             
             Debug.Log("NamakoSolverの設定が完了しました。");
@@ -428,6 +435,9 @@ namespace Namako
             // Generate objects
             GenerateNodeObjects();
             GenerateTetraObjects();
+            
+            // Automatically set bottom boundary conditions
+            SetBoundaryConditionsByPosition("bottom");
         }
 
         // Read text file and generate pos and tet
@@ -553,11 +563,19 @@ namespace Namako
             GenerateNodeObjects();
             GenerateTetraObjects();
             
+            // Automatically set bottom boundary conditions
+            SetBoundaryConditionsByPosition("bottom");
+            
             // 表面メッシュを抽出してGameObjectとして保存（チェックボックスがオンの場合のみ）
             if (generateSurfaceMesh)
             {
                 GameObject surfaceMeshObj = TetrahedralMeshTools.ExtractSurfaceMesh(pos, tet, nodes, tets, meshObj.transform, surfaceMeshObjName);
                 visObj = surfaceMeshObj; // 作成した表面メッシュをvisObjに格納
+            }
+            else
+            {
+                // 表面メッシュを生成しない場合はvisObjを空にする
+                visObj = null;
             }
         }
 
@@ -636,6 +654,13 @@ namespace Namako
             mesh.RecalculateBounds();
             mesh.RecalculateNormals();
             mesh.RecalculateTangents();
+            
+            // Set initial tetra visibility state
+            MeshRenderer tetRenderer = tetObj.GetComponent<MeshRenderer>();
+            if (tetRenderer != null)
+            {
+                tetRenderer.enabled = showTetras;
+            }
             
             // Create wireframe by default
             if (showWireframe)
@@ -912,19 +937,10 @@ namespace Namako
                     initializeMethod.Invoke(wireframeRenderer, new object[] { nodeObj, tet, tets });
                 }
             }
-            
-            // Hide original tetra mesh
-            tetObj.GetComponent<MeshRenderer>().enabled = false;
         }
 
         void DestroyWireframeRenderer()
         {
-            if (tetObj != null)
-            {
-                // Show original tetra mesh
-                tetObj.GetComponent<MeshRenderer>().enabled = true;
-            }
-            
             // Remove wireframe object
             if (wireframeRenderer != null)
             {
