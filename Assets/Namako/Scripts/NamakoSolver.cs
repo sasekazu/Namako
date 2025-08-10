@@ -60,7 +60,7 @@ namespace Namako
             FEMVTXVsRBSDF = 0,
             FEMSDFVsRBVTX = 1
         }
-        [SerializeField] CollisionDetectionType collisionDetectionType = CollisionDetectionType.FEMVTXVsRBSDF;
+        [SerializeField] CollisionDetectionType collisionDetectionType = CollisionDetectionType.FEMSDFVsRBVTX;
 
         [Tooltip("実行開始時に自動的にFEMを開始する"), Header("FEM Control")]
         public bool autoStartFEM = true;
