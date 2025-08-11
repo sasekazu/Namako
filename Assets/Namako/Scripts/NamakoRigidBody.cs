@@ -132,19 +132,10 @@ namespace Namako
         }
         
         /// <summary>
-        /// Get mesh data from this object
-        /// </summary>
-        /// <returns>Mesh data</returns>
-        public Mesh GetMesh()
-        {
-            return meshFilter?.mesh;
-        }
-        
-        /// <summary>
         /// Get all meshes from this object and its children
         /// </summary>
         /// <returns>Array of mesh data with their transforms</returns>
-        private (Mesh mesh, Transform transform)[] GetAllMeshes()
+        public (Mesh mesh, Transform transform)[] GetAllMeshes()
         {
             var meshFilters = GetComponentsInChildren<MeshFilter>();
             var meshes = new (Mesh, Transform)[meshFilters.Length];
@@ -159,6 +150,7 @@ namespace Namako
         
         /// <summary>
         /// Get world coordinate vertex array from this object and its children
+        /// このメソッドは外部コンポーネントからも使用可能です
         /// </summary>
         /// <returns>World coordinate vertex array</returns>
         public Vector3[] GetWorldVertices()
@@ -197,6 +189,7 @@ namespace Namako
         
         /// <summary>
         /// Get triangle indices from this object and its children
+        /// このメソッドは外部コンポーネントからも使用可能です
         /// </summary>
         /// <returns>Triangle index array</returns>
         public int[] GetTriangles()

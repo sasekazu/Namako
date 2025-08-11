@@ -8,6 +8,7 @@ namespace Namako
     /// <summary>
     /// Simple contact force visualization component
     /// </summary>
+    [RequireComponent(typeof(NamakoRigidBody))]
     public class NamakoForceVisualizer : MonoBehaviour
     {
         [Header("Force Visualization Settings")]
@@ -43,7 +44,6 @@ namespace Namako
         private List<GameObject> arrowObjects = new List<GameObject>();
         private GameObject totalForceArrow;
         private GameObject arrowParent;
-        private MeshFilter targetMeshFilter;
         private Vector3[] targetVertices;
         private bool isInitialized = false;
         private NamakoSolver namakoSolver;
@@ -90,16 +90,16 @@ namespace Namako
                 return;
             }
 
-            // Get MeshFilter of target GameObject
-            targetMeshFilter = GetComponent<MeshFilter>();
-
-            if (targetMeshFilter == null || targetMeshFilter.mesh == null)
+            // Get NamakoRigidBody component (guaranteed to exist due to RequireComponent)
+            NamakoRigidBody rigidBody = GetComponent<NamakoRigidBody>();
+            targetVertices = rigidBody.GetWorldVertices();
+            
+            if (targetVertices == null || targetVertices.Length == 0)
             {
-                Debug.LogError($"MeshFilter or Mesh not found on {gameObject.name}");
+                Debug.LogError($"No vertices found in {gameObject.name} or its children");
                 return;
             }
 
-            targetVertices = targetMeshFilter.mesh.vertices;
             CreateArrowRenderers();
             
             // Initialize cache
@@ -247,11 +247,14 @@ namespace Namako
                 return;
             }
 
-            // ワールド座標の頂点位置を直接取得
-            Vector3[] worldVertices = new Vector3[targetVertices.Length];
-            for (int i = 0; i < targetVertices.Length; i++)
+            // Get world vertices from NamakoRigidBody (guaranteed to exist due to RequireComponent)
+            NamakoRigidBody rigidBody = GetComponent<NamakoRigidBody>();
+            Vector3[] worldVertices = rigidBody.GetWorldVertices();
+
+            if (worldVertices == null || worldVertices.Length != targetVertices.Length)
             {
-                worldVertices[i] = transform.TransformPoint(targetVertices[i]);
+                HideAllArrows();
+                return;
             }
 
             // Update arrows for each vertex
