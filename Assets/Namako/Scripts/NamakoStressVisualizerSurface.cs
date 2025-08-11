@@ -7,11 +7,11 @@ using System.Runtime.InteropServices;
 namespace Namako
 {
     /// <summary>
-    /// FEMシミュレーションの応力可視化を行うコンポーネント
+    /// FEMシミュレーションの応力可視化を行うコンポーネント（サーフェス用）
     /// NamakoSolverと同じGameObjectにアタッチして使用する
     /// </summary>
     [RequireComponent(typeof(NamakoSolver))]
-    public class NamakoStressVisualizer : MonoBehaviour
+    public class NamakoStressVisualizerSurface : MonoBehaviour
     {
         [Header("Stress Visualization Settings")]
         [Tooltip("Enable stress visualization")]

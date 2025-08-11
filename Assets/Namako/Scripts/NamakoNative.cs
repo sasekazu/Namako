@@ -48,6 +48,9 @@ namespace Namako
         public static extern void GetVisMeshStress(IntPtr stress);
         
         [DllImport("namako")] 
+        public static extern void GetNodePrincipalStress(IntPtr stress);
+        
+        [DllImport("namako")] 
         public static extern void GetRotationXYZW(IntPtr xyzw);
         
         [DllImport("namako")] 

@@ -59,9 +59,52 @@ namespace Namako
             window.titleContent = new GUIContent("Namako Mesh Tool");
         }
 
+        void UpdateSavePath()
+        {
+            string scenePath = SceneManager.GetActiveScene().path;
+            string baseFileName = "";
+
+            // ビジュアルオブジェクトがある場合はその名前を使用
+            if (visObj != null)
+            {
+                baseFileName = visObj.name;
+            }
+            // テキストアセットがある場合はその名前を使用
+            else if (textAsset != null)
+            {
+                baseFileName = textAsset.name;
+            }
+            // フォールバック: シーンファイル名を使用
+            else if (!string.IsNullOrEmpty(scenePath))
+            {
+                baseFileName = System.IO.Path.GetFileNameWithoutExtension(scenePath);
+            }
+            else
+            {
+                baseFileName = "UnnamedMesh";
+            }
+
+            // シーンのディレクトリパスを取得
+            string directory = "";
+            if (!string.IsNullOrEmpty(scenePath))
+            {
+                directory = System.IO.Path.GetDirectoryName(scenePath);
+                if (!string.IsNullOrEmpty(directory))
+                {
+                    directory = directory.Replace('\\', '/') + "/";
+                }
+            }
+            else
+            {
+                directory = "Assets/";
+            }
+
+            savePath = directory + baseFileName + "-generatedmesh.json";
+        }
+
         void OnGUI()
         {
-            savePath = SceneManager.GetActiveScene().path.Replace(".unity", "-generatedmesh.json");
+            UpdateSavePath();
 
             scrollPosition = EditorGUILayout.BeginScrollView(scrollPosition);
 
@@ -303,10 +346,30 @@ namespace Namako
             string scenePath = SceneManager.GetActiveScene().path;
             if (!string.IsNullOrEmpty(scenePath))
             {
-                string savePath = scenePath.Replace(".unity", "-generatedmesh.json");
-                if (AssetDatabase.DeleteAsset(savePath))
+                // 従来のシーン名ベースのファイル
+                string oldSavePath = scenePath.Replace(".unity", "-generatedmesh.json");
+                if (AssetDatabase.DeleteAsset(oldSavePath))
                 {
-                    Debug.Log($"Generated mesh file removed: {savePath}");
+                    Debug.Log($"Generated mesh file removed: {oldSavePath}");
+                }
+
+                // より包括的なクリーンアップ: "*-generatedmesh.json" パターンのファイルを検索
+                string sceneDirectory = System.IO.Path.GetDirectoryName(scenePath);
+                if (!string.IsNullOrEmpty(sceneDirectory))
+                {
+                    string[] generatedFiles = System.IO.Directory.GetFiles(
+                        sceneDirectory, "*-generatedmesh.json", System.IO.SearchOption.TopDirectoryOnly);
+                    
+                    foreach (string file in generatedFiles)
+                    {
+                        string relativePath = file.Replace(Application.dataPath.Replace("/Assets", ""), "").Replace('\\', '/');
+                        if (relativePath.StartsWith("/")) relativePath = relativePath.Substring(1);
+                        
+                        if (AssetDatabase.DeleteAsset(relativePath))
+                        {
+                            Debug.Log($"Generated mesh file removed: {relativePath}");
+                        }
+                    }
                 }
             }
             AssetDatabase.Refresh();
@@ -386,24 +449,24 @@ namespace Namako
                 Debug.Log("既存のNamakoSolverを使用します。");
             }
 
-            // NamakoStressVisualizerを自動的にアタッチ（新規・既存どちらの場合も）
-            var stressVisualizer = solverObj.GetComponent<NamakoStressVisualizer>();
+            // NamakoStressVisualizerSurfaceを自動的にアタッチ（新規・既存どちらの場合も）
+            var stressVisualizer = solverObj.GetComponent<NamakoStressVisualizerSurface>();
             if (stressVisualizer == null)
             {
-                Type stressVisualizerType = Type.GetType("Namako.NamakoStressVisualizer, Assembly-CSharp");
+                Type stressVisualizerType = Type.GetType("Namako.NamakoStressVisualizerSurface, Assembly-CSharp");
                 if (stressVisualizerType != null)
                 {
-                    stressVisualizer = solverObj.AddComponent(stressVisualizerType) as NamakoStressVisualizer;
-                    Debug.Log("NamakoStressVisualizerが自動的にアタッチされました。");
+                    stressVisualizer = solverObj.AddComponent(stressVisualizerType) as NamakoStressVisualizerSurface;
+                    Debug.Log("NamakoStressVisualizerSurfaceが自動的にアタッチされました。");
                 }
                 else
                 {
-                    Debug.LogWarning("NamakoStressVisualizerクラスが見つかりません。");
+                    Debug.LogWarning("NamakoStressVisualizerSurfaceクラスが見つかりません。");
                 }
             }
             else
             {
-                Debug.Log("NamakoStressVisualizerは既にアタッチされています。");
+                Debug.Log("NamakoStressVisualizerSurfaceは既にアタッチされています。");
             }
 
             // SolverにTetraMeshオブジェクトを設定
