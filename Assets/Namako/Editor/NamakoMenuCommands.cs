@@ -7,6 +7,9 @@ namespace Namako
 {
     public static class NamakoMenuCommands
     {
+        // Solver object name constant
+        public const string SOLVER_OBJECT_NAME = "NamakoSolverManager";
+
         // Tools
         [MenuItem("Namako/Tools/Namako Mesh Tool")]
         public static void ShowMeshTool()
@@ -134,16 +137,12 @@ namespace Namako
             }
 
             // フォールバック: 特定の名前のオブジェクトも削除
-            string[] solverObjectNames = { "SolverObject", "NamakoSolverManager" };
-            foreach (string objName in solverObjectNames)
+            GameObject solverObject = GameObject.Find(SOLVER_OBJECT_NAME);
+            if (solverObject != null)
             {
-                GameObject solverObject = GameObject.Find(objName);
-                if (solverObject != null)
-                {
-                    Debug.Log($"Removing solver object by name: {objName}");
-                    UnityEngine.Object.DestroyImmediate(solverObject);
-                    cleanedCount++;
-                }
+                Debug.Log($"Removing solver object by name: {SOLVER_OBJECT_NAME}");
+                UnityEngine.Object.DestroyImmediate(solverObject);
+                cleanedCount++;
             }
 
             Debug.Log($"Solver cleanup completed. {cleanedCount} solver objects removed.");

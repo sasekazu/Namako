@@ -202,7 +202,7 @@ namespace Namako
         void LinkToNamakoSolver()
         {
             // Find existing NamakoSolver in the scene
-            GameObject solverObj = GameObject.Find("SolverObject");
+            GameObject solverObj = GameObject.Find(NamakoMenuCommands.SOLVER_OBJECT_NAME);
             Component namakoSolver = null;
 
             if (solverObj != null)
@@ -216,8 +216,8 @@ namespace Namako
             {
                 if (solverObj == null)
                 {
-                    solverObj = new GameObject("SolverObject");
-                    Debug.Log("Created new SolverObject.");
+                    solverObj = new GameObject(NamakoMenuCommands.SOLVER_OBJECT_NAME);
+                    Debug.Log($"Created new {NamakoMenuCommands.SOLVER_OBJECT_NAME}.");
                 }
 
                 // Try to add NamakoSolver component

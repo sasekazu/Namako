@@ -26,6 +26,15 @@ namespace Namako
         private GameObject tetObj;
         private string meshObjName = "TetraMesh";
         private string surfaceMeshObjName = "SurfaceMesh";
+        private string nodeRootObjName = "nodes";
+        private string tetraObjName = "tetras";
+        private string wireframeObjName = "tetras_wireframe";
+        
+        // Static constants for cleanup operations
+        private const string TETRA_MESH_OBJ_NAME = "TetraMesh";
+        private const string SURFACE_MESH_OBJ_NAME = "SurfaceMesh";
+        private const string WIREFRAME_OBJ_NAME = "tetras_wireframe";
+        
         public const float r = 0.005f;
         private TextAsset jsonAsset;
         private float tetraScale = 0.9f;
@@ -274,7 +283,7 @@ namespace Namako
             }
 
             // フォールバック: 特定の名前のオブジェクトも削除
-            string[] meshObjectNames = { "TetraMesh", "SurfaceMesh", "tetras_wireframe" };
+            string[] meshObjectNames = { TETRA_MESH_OBJ_NAME, SURFACE_MESH_OBJ_NAME, WIREFRAME_OBJ_NAME };
             foreach (string objName in meshObjectNames)
             {
                 GameObject obj = GameObject.Find(objName);
@@ -347,7 +356,7 @@ namespace Namako
             tetContainer.tetraScale = tetraScale;
             
             // 既存のNamakoSolverManagerを検索
-            GameObject solverObj = GameObject.Find("NamakoSolverManager");
+            GameObject solverObj = GameObject.Find(NamakoMenuCommands.SOLVER_OBJECT_NAME);
             NamakoSolver solver = null;
             
             if (solverObj != null)
@@ -360,7 +369,7 @@ namespace Namako
             {
                 if (solverObj == null)
                 {
-                    solverObj = new GameObject("NamakoSolverManager");
+                    solverObj = new GameObject(NamakoMenuCommands.SOLVER_OBJECT_NAME);
                 }
                 
                 solver = NamakoSolver.CreateFromTool(solverObj);
@@ -585,7 +594,7 @@ namespace Namako
         void GenerateNodeObjects()
         {
             nodeRootObj = new GameObject();
-            nodeRootObj.name = "nodes";
+            nodeRootObj.name = nodeRootObjName;
             nodeRootObj.transform.parent = meshObj.transform;
             nodeObj = new GameObject[nodes];
             GameObject go = GameObject.CreatePrimitive(PrimitiveType.Sphere);
@@ -629,7 +638,7 @@ namespace Namako
         {
             tetObj = GameObject.CreatePrimitive(PrimitiveType.Cube);
             DestroyImmediate(tetObj.GetComponent<BoxCollider>());
-            tetObj.name = "tetras";
+            tetObj.name = tetraObjName;
             
             // Create material for solid rendering
             var mat = new Material(Shader.Find("Standard"));
@@ -718,7 +727,7 @@ namespace Namako
             if (meshObj == null) return;
             
             // nodeRootObjを検索
-            Transform nodeRootTransform = meshObj.transform.Find("nodes");
+            Transform nodeRootTransform = meshObj.transform.Find(nodeRootObjName);
             if (nodeRootTransform == null) return;
             
             nodeRootObj = nodeRootTransform.gameObject;
@@ -895,7 +904,7 @@ namespace Namako
             showVisualModel = !showVisualModel;
             
             // NamakoSolverからvisual objを取得
-            GameObject solverObj = GameObject.Find("NamakoSolverManager");
+            GameObject solverObj = GameObject.Find(NamakoMenuCommands.SOLVER_OBJECT_NAME);
             if (solverObj != null)
             {
                 NamakoSolver solver = solverObj.GetComponent<NamakoSolver>();
@@ -920,7 +929,7 @@ namespace Namako
             if (tetObj == null || nodeObj == null) return;
             
             // Create wireframe GameObject with WireframeRenderer component
-            GameObject wireframeObj = new GameObject("tetras_wireframe");
+            GameObject wireframeObj = new GameObject(wireframeObjName);
             wireframeObj.transform.parent = tetObj.transform.parent;
             wireframeObj.transform.localPosition = tetObj.transform.localPosition;
             
@@ -950,7 +959,7 @@ namespace Namako
             else
             {
                 // Fallback: find and destroy by name
-                Transform wireframeTransform = tetObj?.transform.parent?.Find("tetras_wireframe");
+                Transform wireframeTransform = tetObj?.transform.parent?.Find(wireframeObjName);
                 if (wireframeTransform != null)
                 {
                     DestroyImmediate(wireframeTransform.gameObject);
