@@ -132,7 +132,7 @@ namespace Namako
         }
         
         /// <summary>
-        /// Get mesh data
+        /// Get mesh data from this object
         /// </summary>
         /// <returns>Mesh data</returns>
         public Mesh GetMesh()
@@ -141,32 +141,99 @@ namespace Namako
         }
         
         /// <summary>
-        /// Get world coordinate vertex array
+        /// Get all meshes from this object and its children
+        /// </summary>
+        /// <returns>Array of mesh data with their transforms</returns>
+        private (Mesh mesh, Transform transform)[] GetAllMeshes()
+        {
+            var meshFilters = GetComponentsInChildren<MeshFilter>();
+            var meshes = new (Mesh, Transform)[meshFilters.Length];
+            
+            for (int i = 0; i < meshFilters.Length; i++)
+            {
+                meshes[i] = (meshFilters[i].mesh, meshFilters[i].transform);
+            }
+            
+            return meshes;
+        }
+        
+        /// <summary>
+        /// Get world coordinate vertex array from this object and its children
         /// </summary>
         /// <returns>World coordinate vertex array</returns>
         public Vector3[] GetWorldVertices()
         {
-            Mesh mesh = GetMesh();
-            if (mesh == null) return null;
+            var allMeshes = GetAllMeshes();
+            if (allMeshes.Length == 0) return null;
             
-            Vector3[] localVertices = mesh.vertices;
-            Vector3[] worldVertices = new Vector3[localVertices.Length];
-            
-            for (int i = 0; i < localVertices.Length; i++)
+            // Count total vertices
+            int totalVertexCount = 0;
+            foreach (var (mesh, transform) in allMeshes)
             {
-                worldVertices[i] = transform.TransformPoint(localVertices[i]);
+                if (mesh != null)
+                    totalVertexCount += mesh.vertexCount;
+            }
+            
+            if (totalVertexCount == 0) return null;
+            
+            // Collect all world vertices
+            Vector3[] worldVertices = new Vector3[totalVertexCount];
+            int currentIndex = 0;
+            
+            foreach (var (mesh, meshTransform) in allMeshes)
+            {
+                if (mesh == null) continue;
+                
+                Vector3[] localVertices = mesh.vertices;
+                for (int i = 0; i < localVertices.Length; i++)
+                {
+                    worldVertices[currentIndex] = meshTransform.TransformPoint(localVertices[i]);
+                    currentIndex++;
+                }
             }
             
             return worldVertices;
         }
         
         /// <summary>
-        /// Get triangle indices
+        /// Get triangle indices from this object and its children
         /// </summary>
         /// <returns>Triangle index array</returns>
         public int[] GetTriangles()
         {
-            return GetMesh()?.triangles;
+            var allMeshes = GetAllMeshes();
+            if (allMeshes.Length == 0) return null;
+            
+            // Count total triangles
+            int totalTriangleCount = 0;
+            foreach (var (mesh, transform) in allMeshes)
+            {
+                if (mesh != null)
+                    totalTriangleCount += mesh.triangles.Length;
+            }
+            
+            if (totalTriangleCount == 0) return null;
+            
+            // Collect all triangles with vertex offset
+            int[] allTriangles = new int[totalTriangleCount];
+            int currentTriangleIndex = 0;
+            int vertexOffset = 0;
+            
+            foreach (var (mesh, meshTransform) in allMeshes)
+            {
+                if (mesh == null) continue;
+                
+                int[] meshTriangles = mesh.triangles;
+                for (int i = 0; i < meshTriangles.Length; i++)
+                {
+                    allTriangles[currentTriangleIndex] = meshTriangles[i] + vertexOffset;
+                    currentTriangleIndex++;
+                }
+                
+                vertexOffset += mesh.vertexCount;
+            }
+            
+            return allTriangles;
         }
         
         /// <summary>
@@ -174,10 +241,10 @@ namespace Namako
         /// </summary>
         public void RegisterToNative()
         {
-            Mesh mesh = GetMesh();
-            if (mesh == null)
+            var allMeshes = GetAllMeshes();
+            if (allMeshes.Length == 0)
             {
-                Debug.LogWarning($"[{gameObject.name}] No mesh found");
+                Debug.LogWarning($"[{gameObject.name}] No mesh found in this object or its children");
                 return;
             }
             
@@ -217,6 +284,8 @@ namespace Namako
                     RigidBodyName,
                     vertexPtr, worldVertices.Length,
                     facePtr, triangles.Length / 3);
+                    
+                Debug.Log($"[{gameObject.name}] Registered rigid body with {worldVertices.Length} vertices and {triangles.Length / 3} triangles from {allMeshes.Length} mesh(es)");
             }
             finally
             {
