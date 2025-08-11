@@ -1,9 +1,10 @@
 using UnityEngine;
+using System.Runtime.InteropServices;
 
 namespace Namako.Samples
 {
     /// <summary>
-    /// ScalarBarGraphを使用してNamakoSolverの最大応力値を可視化するサンプル
+    /// ScalarBarGraphを使用してNamakoTetraMeshの最大主応力値を可視化するサンプル
     /// Canvasにアタッチして使用
     /// </summary>
     [RequireComponent(typeof(Canvas))]
@@ -17,7 +18,7 @@ namespace Namako.Samples
         [SerializeField] private float updateInterval = 0.01f;
 
         private ScalarBarGraph stressBarGraph;
-        private NamakoSolver namakoSolver;
+        private NamakoTetraMesh namakoTetraMesh;
         private float currentStress = 0f;
         private float lastUpdateTime;
 
@@ -26,8 +27,8 @@ namespace Namako.Samples
             // ScalarBarGraphを自動作成
             stressBarGraph = gameObject.AddComponent<ScalarBarGraph>();
             
-            // NamakoSolverを検索
-            namakoSolver = FindObjectOfType<NamakoSolver>();
+            // NamakoTetraMeshを検索
+            namakoTetraMesh = FindObjectOfType<NamakoTetraMesh>();
             
             // 初期化
             InitializeStressGraph();
@@ -45,14 +46,14 @@ namespace Namako.Samples
 
         void UpdateStressFromSolver()
         {
-            if (namakoSolver == null || !namakoSolver.IsFEMStarted) return;
+            if (namakoTetraMesh == null) return;
 
             try
             {
-                var meshExtractor = namakoSolver.GetMeshExtractor();
-                if (meshExtractor != null && meshExtractor.n_vert_all > 0)
+                int tetraCount = namakoTetraMesh.Tets;
+                if (tetraCount > 0)
                 {
-                    float[] stressValues = GetStressValuesFromNative(meshExtractor.n_vert_all);
+                    float[] stressValues = GetPrincipalStressFromNative(tetraCount);
                     
                     if (stressValues != null && stressValues.Length > 0)
                     {
@@ -70,28 +71,28 @@ namespace Namako.Samples
             }
             catch (System.Exception e)
             {
-                Debug.LogWarning($"応力値取得に失敗: {e.Message}");
+                Debug.LogWarning($"主応力値取得に失敗: {e.Message}");
             }
         }
 
-        private float[] GetStressValuesFromNative(int vertexCount)
+        private float[] GetPrincipalStressFromNative(int tetraCount)
         {
-            if (vertexCount <= 0) return null;
+            if (tetraCount <= 0) return null;
 
             try
             {
-                System.IntPtr stressPtr = System.Runtime.InteropServices.Marshal.AllocHGlobal(vertexCount * sizeof(float));
-                NamakoNative.GetVisMeshStress(stressPtr);
+                System.IntPtr stressPtr = System.Runtime.InteropServices.Marshal.AllocHGlobal(tetraCount * sizeof(float));
+                NamakoNative.GetNodePrincipalStress(stressPtr);
                 
-                float[] stressValues = new float[vertexCount];
-                System.Runtime.InteropServices.Marshal.Copy(stressPtr, stressValues, 0, vertexCount);
+                float[] stressValues = new float[tetraCount];
+                System.Runtime.InteropServices.Marshal.Copy(stressPtr, stressValues, 0, tetraCount);
                 System.Runtime.InteropServices.Marshal.FreeHGlobal(stressPtr);
                 
                 return stressValues;
             }
             catch (System.Exception e)
             {
-                Debug.LogError($"応力値の取得エラー: {e.Message}");
+                Debug.LogError($"主応力値の取得エラー: {e.Message}");
                 return null;
             }
         }
