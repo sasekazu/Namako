@@ -863,23 +863,37 @@ namespace Namako
         void ToggleNodeVisibility()
         {
             showNodes = !showNodes;
-            if (nodeRootObj != null)
+            
+            // 毎回名前で検索してオブジェクトを取得
+            GameObject meshObject = GameObject.Find(meshObjName);
+            if (meshObject != null)
             {
-                nodeRootObj.SetActive(showNodes);
-                SceneView.RepaintAll();
+                Transform nodeRootTransform = meshObject.transform.Find(nodeRootObjName);
+                if (nodeRootTransform != null)
+                {
+                    nodeRootTransform.gameObject.SetActive(showNodes);
+                    SceneView.RepaintAll();
+                }
             }
         }
 
         void ToggleTetraVisibility()
         {
             showTetras = !showTetras;
-            if (tetObj != null)
+            
+            // 毎回名前で検索してオブジェクトを取得
+            GameObject meshObject = GameObject.Find(meshObjName);
+            if (meshObject != null)
             {
-                MeshRenderer tetRenderer = tetObj.GetComponent<MeshRenderer>();
-                if (tetRenderer != null)
+                Transform tetraTransform = meshObject.transform.Find(tetraObjName);
+                if (tetraTransform != null)
                 {
-                    tetRenderer.enabled = showTetras;
-                    SceneView.RepaintAll();
+                    MeshRenderer tetRenderer = tetraTransform.GetComponent<MeshRenderer>();
+                    if (tetRenderer != null)
+                    {
+                        tetRenderer.enabled = showTetras;
+                        SceneView.RepaintAll();
+                    }
                 }
             }
         }
@@ -926,12 +940,27 @@ namespace Namako
 
         void CreateWireframeRenderer()
         {
-            if (tetObj == null || nodeObj == null) return;
+            // 毎回名前で検索してオブジェクトを取得
+            GameObject meshObject = GameObject.Find(meshObjName);
+            if (meshObject == null) return;
+            
+            Transform tetraTransform = meshObject.transform.Find(tetraObjName);
+            if (tetraTransform == null) return;
+            
+            Transform nodeRootTransform = meshObject.transform.Find(nodeRootObjName);
+            if (nodeRootTransform == null) return;
+            
+            // nodeObjを再構築
+            GameObject[] currentNodeObj = new GameObject[nodeRootTransform.childCount];
+            for (int i = 0; i < nodeRootTransform.childCount; i++)
+            {
+                currentNodeObj[i] = nodeRootTransform.GetChild(i).gameObject;
+            }
             
             // Create wireframe GameObject with WireframeRenderer component
             GameObject wireframeObj = new GameObject(wireframeObjName);
-            wireframeObj.transform.parent = tetObj.transform.parent;
-            wireframeObj.transform.localPosition = tetObj.transform.localPosition;
+            wireframeObj.transform.parent = tetraTransform.parent;
+            wireframeObj.transform.localPosition = tetraTransform.localPosition;
             
             // Use reflection to add NamakoWireframeRenderer component
             System.Type wireframeType = System.Type.GetType("Namako.NamakoWireframeRenderer, Assembly-CSharp");
@@ -943,7 +972,7 @@ namespace Namako
                 var initializeMethod = wireframeType.GetMethod("Initialize");
                 if (initializeMethod != null)
                 {
-                    initializeMethod.Invoke(wireframeRenderer, new object[] { nodeObj, tet, tets });
+                    initializeMethod.Invoke(wireframeRenderer, new object[] { currentNodeObj, tet, tets });
                 }
             }
         }
@@ -958,11 +987,22 @@ namespace Namako
             }
             else
             {
-                // Fallback: find and destroy by name
-                Transform wireframeTransform = tetObj?.transform.parent?.Find(wireframeObjName);
-                if (wireframeTransform != null)
+                // Fallback: 毎回名前で検索して削除
+                GameObject meshObject = GameObject.Find(meshObjName);
+                if (meshObject != null)
                 {
-                    DestroyImmediate(wireframeTransform.gameObject);
+                    Transform wireframeTransform = meshObject.transform.Find(wireframeObjName);
+                    if (wireframeTransform != null)
+                    {
+                        DestroyImmediate(wireframeTransform.gameObject);
+                    }
+                }
+                
+                // さらなるフォールバック: 直接名前で検索
+                GameObject wireframeObj = GameObject.Find(wireframeObjName);
+                if (wireframeObj != null)
+                {
+                    DestroyImmediate(wireframeObj);
                 }
             }
         }
