@@ -71,7 +71,10 @@ namespace Namako
         
         [DllImport("namako")] 
         public static extern void SetHandleOffset(float x, float y, float z);
-        
+
+        [DllImport("namako")] 
+        public static extern void SetHandleRotation(float x, float y, float z, float w);
+
         [DllImport("namako")] 
         public static extern void SetGlobalDamping(float damping);
         

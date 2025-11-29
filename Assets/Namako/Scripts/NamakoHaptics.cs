@@ -62,9 +62,11 @@ namespace Namako
                 NamakoNative.SetHapticEnabled(hapticEnabled);
             }
 
-            // Set handle offset from input object position
+            // Set handle offset from input object position and rotation
             Vector3 handleOffset = inputObj.transform.position;
             NamakoNative.SetHandleOffset(handleOffset.x, handleOffset.y, handleOffset.z);
+            Quaternion handleRotation = inputObj.transform.rotation;
+            NamakoNative.SetHandleRotation(handleRotation.x, handleRotation.y, handleRotation.z, handleRotation.w);
 
             // Update rigid body position and rotation
             UpdateRigidBody();
