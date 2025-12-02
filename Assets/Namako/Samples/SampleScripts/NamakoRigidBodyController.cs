@@ -130,6 +130,51 @@ namespace Namako.Samples
             StopRepeat();
         }
         
+        // Public methods for external control
+        /// <summary>
+        /// Grab the nodes (can be called from external scripts)
+        /// </summary>
+        public void Grab()
+        {
+            if (namakoRigidBody != null && !isRepeating)
+            {
+                namakoRigidBody.GrabNodes();
+                isGrabbed = true;
+            }
+        }
+        
+        /// <summary>
+        /// Release the nodes (can be called from external scripts)
+        /// </summary>
+        public void Release()
+        {
+            if (namakoRigidBody != null && !isRepeating)
+            {
+                namakoRigidBody.ReleaseNodes();
+                isGrabbed = false;
+            }
+        }
+        
+        /// <summary>
+        /// Toggle between grab and release states
+        /// </summary>
+        public void ToggleGrab()
+        {
+            if (isGrabbed)
+            {
+                Release();
+            }
+            else
+            {
+                Grab();
+            }
+        }
+        
+        /// <summary>
+        /// Get the current grab state
+        /// </summary>
+        public bool IsGrabbed => isGrabbed;
+        
         void OnValidate()
         {
             // Handle manual grab/release checkbox change in editor
