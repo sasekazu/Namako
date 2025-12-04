@@ -34,9 +34,10 @@ The word "namako" means "sea cucumber" in Japanese.
   - Put a rigi body object into your scene. For a trial, you can use just a simple cube created by right click on the herarcy.
   - Attatch **"Namako Rigid Body"** component to the object.
 - Run
-  - Run the scene and move the object in the scene editor.
-  - You should see the mesh is deformed according to the colision with the rigid object.
-  - Since this is one-way collision algorithm, you can move the rigid object explicitly by using e.g. script. Or conbination with motion capture systems such as Leap Motion Controller and OptiTrack camera etc.
+  - **Run** the scene and move the object in the Scene view.
+  - You should see the mesh deform according to its collision with the rigid object.
+  - Since this is a one-way collision algorithm, **the rigid object must be moved explicitly**, for example by using a script or by integrating a motion-capture system such as the Leap Motion Controller or OptiTrack cameras.
+
 
 ### Simulation settings
 TBD
@@ -49,3 +50,33 @@ TBD
 
 ### General Tips
 - If the object appears very small in the editor, I recommend first selecting the mesh model and pressing the **F** key to focus on it. This makes 3D navigation easier. You can also reduce the size of 3D icons if they obstruct your view of the scene.
+
+## Papers
+[Namako 2](https://diglib.eg.org/items/bdb2c634-de56-49dc-ba4f-1da24b41ce95)
+```
+@inproceedings{10.2312:egve.20251368,
+booktitle = {ICAT-EGVE 2025 - International Conference on Artificial Reality and Telexistence and Eurographics Symposium on Virtual Environments - Posters and Demos},
+editor = {Garro, Valeria and Young, Gareth and Elwardy, Majed},
+title = {{Namako 2: Unity Plugin for Stress Visualization, Deformation Prediction and Haptic Rendering of Soft Objects}},
+author = {Sase, Kazuya and Chen, Xiaoshuai and Tsujita, Teppei and Konno, Atsushi},
+year = {2025},
+publisher = {The Eurographics Association},
+ISSN = {1727-530X},
+ISBN = {978-3-03868-279-0},
+DOI = {10.2312/egve.20251368}
+}
+```        
+
+[Namako 1 (in Japanese)](https://www.jstage.jst.go.jp/article/tvrsj/25/4/25_366/_article/-char/ja/)
+```
+@article{佐瀬 一弥2020,
+  title={柔軟物体の力覚提示に対応したゲームエンジンプラグインNamakoの開発},
+  author={佐瀬 一弥 and 陳 暁帥 and 辻田 哲平 and 近野 敦},
+  journal={日本バーチャルリアリティ学会論文誌},
+  volume={25},
+  number={4},
+  pages={366-373},
+  year={2020},
+  doi={10.18974/tvrsj.25.4_366}
+}
+```
