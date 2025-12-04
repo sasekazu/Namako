@@ -23,16 +23,16 @@ The word "namako" means "sea cucumber" in Japanese.
 - Mesh generation
   - Put a mesh model (such as obj) into the scene hirarchy
   - **Enable Read/Write** checkbox in the inspector of the mesh
-  - Determin the initial transformation by moving, rotating, scaling the model as you want.
+  - Determine the initial transformation by moving, rotating, scaling the model as you want.
   - Open **"Namako/Tools/Namako Mesh Tool"** from the menu bar.
   - Drag the mesh model from the hierarchy to **"Visual Mesh Object"** in the mesh tool.
   - (Option) Specify "Divisions". Higher value generates finer mesh.
   - Push **"Generate Mesh"** button.
   - You should see the wireframe of the tetrahedral mesh overlaid to your model.
   - "NamakoSolverManager" and "TetraMesh" in the hierarchy, which are used for furthuer detailed settings.
-- Rigid body placement
-  - Put a rigi body object into your scene. For a trial, you can use just a simple cube created by right click on the herarcy.
-  - Attatch **"Namako Rigid Body"** component to the object.
+- Rigid Body Placement
+  - Add a rigid body object to your scene. For a quick trial, you can simply use a Cube created via right-click in the Hierarchy.
+  - Attach the **“Namako Rigid Body”** component to the object.
 - Run
   - **Run** the scene and move the object in the Scene view.
   - You should see the mesh deform according to its collision with the rigid object.
