@@ -20,7 +20,7 @@ public class MoveSine : MonoBehaviour
     {
         time += Time.deltaTime;
         Vector3 p = initPos;
-        p.y = initPos.y + amp * ( - Mathf.Cos(2.0f * Mathf.PI * freq * time));
+        p.y = initPos.y + amp * (Mathf.Cos(2.0f * Mathf.PI * freq * time) - 1.0f);
         transform.position = p;
     }
 }

@@ -8,13 +8,30 @@ namespace Namako
 
 
     [ExecuteInEditMode]
-    public class TetContainer : MonoBehaviour
+    public class NamakoTetraMesh : MonoBehaviour
     {
 
         public bool drawWireframe = false;
         public float nodeRadius = 0.005f;
         public float tetraScale = 0.9f;
         public TextAsset meshJsonAsset;
+        
+        [Tooltip("ヤング率 [kPa]"), Range(0.0f, 10.0f), Header("Physical Parameters")]
+        public float youngsModulusKPa = 0.6f;
+        [Tooltip("ポアソン比"), Range(0.0f, 0.49f)]
+        public float poisson = 0.4f;
+        [Tooltip("密度"), Range(0.0f, 2000.0f)]
+        public float density = 1000.0f;
+        [Tooltip("ダンパ係数α"), Range(0.0f, 1.0f)]
+        public float damping_alpha = 0.0f;
+        [Tooltip("ダンパ係数β"), Range(0.0f, 1.0f)]
+        public float damping_beta = 0.1f;
+        [Tooltip("疑似摩擦係数（0-1）"), Range(0, 1)]
+        public float friction = 0.2f;
+        [Tooltip("グローバルダンピング係数"), Range(0.0f, 1.0f)]
+        public float globalDamping = 0.0f;
+        [Tooltip("柔軟物体にかかる重力")]
+        public Vector3 gravityFEM = Vector3.zero;
         private MeshForJSON meshJson = null;
         private GameObject nodeRootObj;
         private GameObject[] nodeObj;

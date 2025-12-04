@@ -1,3 +1,10 @@
+# User Settings (should be added to .gitignore)
+/[Uu]serSettings/
+
+# Additional Unity files that shouldn't be tracked
+/[Pp]rojectSettings/MemorySettings.asset
+/[Pp]rojectSettings/PackageManagerSettings.asset
+
 # This .gitignore file should be placed at the root of your Unity project directory
 #
 # Get latest from https://github.com/github/gitignore/blob/master/Unity.gitignore
