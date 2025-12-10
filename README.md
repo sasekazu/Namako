@@ -49,7 +49,11 @@ TBD
 TBD
 
 ### General Tips
-- If the object appears very small in the editor, I recommend first selecting the mesh model and pressing the **F** key to focus on it. This makes 3D navigation easier. You can also reduce the size of 3D icons if they obstruct your view of the scene.
+If the object appears very small in the editor, I recommend the following adjustments:
+
+- Select the mesh model and press F to focus on it. This will make 3D navigation easier.
+- Reduce the size of 3D icons if they obstruct your view of the scene.
+- In the Main Camera inspector, set the Near Clip Plane to a small value (e.g., 0.0001) to ensure that objects remain visible from the camera.
 
 ## Papers
 [Namako 2](https://diglib.eg.org/items/bdb2c634-de56-49dc-ba4f-1da24b41ce95)
