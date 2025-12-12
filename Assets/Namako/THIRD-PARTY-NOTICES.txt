@@ -9,3 +9,8 @@ directory.
 - Eigen — Mozilla Public License Version 2.0 (MPL-2.0)
 - GLM (OpenGL Mathematics) — MIT License
 - nanoflann — BSD 3-Clause License
+- GLEW (The OpenGL Extension Wrangler Library) — Modified BSD / MIT License
+- GLFW (GLFW: Graphics Library Framework) — zlib/libpng License
+- pugixml — MIT License
+- Assimp (Open Asset Import Library) — BSD 3-Clause License
+- zlib — zlib License
