@@ -4,6 +4,7 @@
 # Additional Unity files that shouldn't be tracked
 /[Pp]rojectSettings/MemorySettings.asset
 /[Pp]rojectSettings/PackageManagerSettings.asset
+/[Pp]rojectSettings/SceneTemplateSettings.json
 
 # This .gitignore file should be placed at the root of your Unity project directory
 #
