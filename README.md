@@ -3,6 +3,10 @@
 Namako is a Unity plugin for object deformation based on the finite element method. It provides basic mesh-generation capabilities, supports rigid–soft body contact, and enables haptic rendering through virtual coupling.
 The word "namako" means "sea cucumber" in Japanese.
 
+
+## Unity Version
+- This project has been tested with **Unity 2021.3 LTS**.
+
 ## Installation
 - Download the unitypackage from the release page (TBD) and import it into your Unity project.
 - “Namako” will appear in the Editor menu.
