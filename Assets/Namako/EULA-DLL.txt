@@ -1,0 +1,107 @@
+PROPRIETARY END USER LICENSE AGREEMENT (DLL)
+============================================
+
+IMPORTANT: This End User License Agreement ("Agreement") is a legal agreement
+between you (an individual or a legal entity) and the licensor ("Licensor")
+for the precompiled binary distributed with this Unity package (the "DLL").
+By installing, copying, or otherwise using the DLL, you agree to be bound by
+the terms of this Agreement.
+
+1. GRANT OF LICENSE
+1.1 License Grant.
+    Subject to your compliance with this Agreement, Licensor grants you a
+    worldwide, perpetual, non-exclusive, royalty-free license to:
+    (a) use and reproduce the DLL solely as integrated into this Unity package
+        (the "Package"); and
+    (b) distribute the unmodified DLL only as embedded in applications
+        developed using the Package ("Applications").
+
+1.2 Commercial Use.
+    Commercial and non-commercial use of the Applications is permitted.
+
+2. RESTRICTIONS
+2.1 No Standalone Redistribution.
+    You may not distribute, sublicense, sell, rent, lease, lend, or otherwise
+    make the DLL available on a standalone basis.
+
+2.2 No Reverse Engineering.
+    You may not reverse engineer, decompile, disassemble, or otherwise attempt
+    to derive the source code of the DLL, except to the extent expressly
+    permitted by applicable law notwithstanding this limitation.
+
+2.3 No Removal of Notices.
+    You may not remove or alter any copyright, trademark, or proprietary notices
+    contained in or on the DLL.
+
+2.4 PROHIBITED USES (Field-of-Use Restrictions).
+    You shall not use the DLL in or for:
+    (a) medical diagnosis, treatment, or life-support systems;
+    (b) nuclear facilities, aircraft navigation or communication systems,
+        air traffic control, or other safety-critical systems where failure
+        could lead to death, personal injury, or severe environmental damage;
+    (c) design, manufacture, operation, or deployment of weapons or military
+        systems; or
+    (d) any unlawful, infringing, or defamatory activity.
+
+2.5 CLOUD / SAAS / SERVER DEPLOYMENT.
+    You may deploy Applications that embed the DLL on servers you control.
+    However, you may not:
+    (a) expose the DLL’s functionality as a standalone network service or API;
+    (b) allow third parties to directly access, extract, or invoke the DLL,
+        including via scripting interfaces, plugins, or remote procedure calls; or
+    (c) redistribute the DLL as an SDK, developer tool, or reusable engine or asset.
+    For the avoidance of doubt, distribution of Applications (including networked
+    games or services) that merely embed the DLL is permitted, provided that the
+    DLL is not exposed for third-party use or extraction.
+
+3. THIRD-PARTY COMPONENTS
+    The DLL may incorporate or include material derived from third-party
+    software components. Such components are licensed under their respective
+    licenses. This Agreement does not limit your rights under those licenses.
+    See the accompanying THIRD-PARTY-NOTICES.txt and the licenses/ directory
+    for details.
+
+4. OWNERSHIP
+    The DLL is licensed, not sold. Licensor and its licensors retain all right,
+    title, and interest in and to the DLL, including all intellectual property
+    rights therein.
+
+5. WARRANTY DISCLAIMER
+    THE DLL IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED,
+    INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR
+    A PARTICULAR PURPOSE, AND NON-INFRINGEMENT. YOU ASSUME THE ENTIRE RISK AS TO
+    THE QUALITY AND PERFORMANCE OF THE DLL.
+
+6. LIMITATION OF LIABILITY
+    IN NO EVENT SHALL LICENSOR OR ITS LICENSORS BE LIABLE FOR ANY INDIRECT,
+    INCIDENTAL, SPECIAL, CONSEQUENTIAL, OR EXEMPLARY DAMAGES, INCLUDING BUT NOT
+    LIMITED TO LOSS OF PROFITS, LOSS OF DATA, OR LOSS OF GOODWILL, ARISING OUT OF
+    OR IN CONNECTION WITH THIS AGREEMENT OR THE USE OF THE DLL, EVEN IF ADVISED
+    OF THE POSSIBILITY OF SUCH DAMAGES.
+
+7. TERMINATION
+    This Agreement is effective until terminated. It will terminate automatically
+    without notice if you breach any term of this Agreement. Upon termination,
+    you must cease all use of the DLL and destroy all copies in your possession
+    or control.
+
+8. GENERAL
+8.1 Export Control.
+    You agree to comply with all applicable export control laws and regulations.
+
+8.2 Entire Agreement.
+    This Agreement constitutes the entire agreement between you and Licensor
+    concerning the DLL and supersedes all prior or contemporaneous agreements
+    or understandings.
+
+8.3 Governing Law and Jurisdiction.
+    This Agreement shall be governed by and construed in accordance with the
+    laws of Japan, and the Tokyo District Court shall have exclusive jurisdiction
+    over any disputes arising out of or in connection with this Agreement.
+
+9. AUDIT
+    Upon reasonable prior notice, you shall provide Licensor with information
+    reasonably necessary to verify compliance with this Agreement, including
+    confirmation that the DLL is not distributed on a standalone basis.
+
+END OF AGREEMENT
