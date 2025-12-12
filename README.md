@@ -8,7 +8,7 @@ The word "namako" means "sea cucumber" in Japanese.
 - This project has been tested with **Unity 2021.3 LTS**.
 
 ## Installation
-- Download the unitypackage from the release page (TBD) and import it into your Unity project.
+- Download the unitypackage from [the release page](https://github.com/sasekazu/Namako/releases) and import it into your Unity project.
 - “Namako” will appear in the Editor menu.
 
 
