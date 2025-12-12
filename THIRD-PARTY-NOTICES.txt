@@ -1,0 +1,11 @@
+Third-Party Notices
+===================
+
+This package includes source or binary material derived from the following
+open-source components. Full license texts are located in the "licenses/"
+directory.
+
+- CHAI3D — BSD 3-Clause License
+- Eigen — Mozilla Public License Version 2.0 (MPL-2.0)
+- GLM (OpenGL Mathematics) — MIT License
+- nanoflann — BSD 3-Clause License
